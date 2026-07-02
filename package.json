@@ -1,0 +1,13 @@
+{
+  "name": "pipeelo-api-docs",
+  "private": true,
+  "description": "Documentação da API Pipeelo",
+  "devDependencies": {
+    "@scalar/api-reference": "1.62.2",
+    "http-server": "^14.1.1"
+  },
+  "scripts": {
+    "vendor": "bash scripts/vendor.sh",
+    "serve": "http-server -p 8020 -c-1 ."
+  }
+}

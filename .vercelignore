@@ -1,0 +1,7 @@
+node_modules
+scripts
+Dockerfile
+docker-compose.yaml
+nginx.conf
+.dockerignore
+README.md

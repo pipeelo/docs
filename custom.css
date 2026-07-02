@@ -1,0 +1,54 @@
+.light-mode {
+  --scalar-color-accent: #009e80;
+  --scalar-background-accent: #01d5ac14;
+  --scalar-button-1: #01d5ac;
+  --scalar-button-1-hover: #00bd98;
+  --scalar-button-1-color: #052e26;
+}
+
+.dark-mode {
+  --scalar-color-accent: #01d5ac;
+  --scalar-background-accent: #01d5ac1f;
+  --scalar-button-1: #01d5ac;
+  --scalar-button-1-hover: #2ce4c0;
+  --scalar-button-1-color: #052e26;
+}
+
+.light-mode .sidebar {
+  --scalar-sidebar-color-active: #009e80;
+  --scalar-sidebar-item-active-background: rgba(1, 213, 172, 0.12);
+  --scalar-sidebar-item-hover-background: rgba(0, 0, 0, 0.045);
+}
+
+.dark-mode .sidebar {
+  --scalar-sidebar-color-active: #2ce4c0;
+  --scalar-sidebar-item-active-background: rgba(1, 213, 172, 0.14);
+  --scalar-sidebar-item-hover-background: rgba(255, 255, 255, 0.055);
+}
+
+/* Títulos de grupo da sidebar (x-tagGroups): rótulos de seção, não botões */
+li.group\/sidebar-section > .group\/button {
+  pointer-events: none;
+  user-select: none;
+  background: transparent !important;
+  padding-top: 18px;
+  padding-bottom: 4px;
+}
+
+li.group\/sidebar-section > .group\/button > .group\/button-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--scalar-color-3);
+}
+
+.scalar-mcp-layer-link {
+  display: none !important;
+}
+
+/* Tabelas da introdução: primeira coluna sem quebra de palavra */
+.markdown table th:first-child,
+.markdown table td:first-child {
+  white-space: nowrap;
+}

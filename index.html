@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pipeelo — Documentação da API</title>
+  <meta name="description" content="Referência completa da API da Pipeelo: conversas, mensagens, clientes, campanhas e webhooks." />
+  <link rel="icon" href="./assets/favicon.ico" />
+  <link rel="stylesheet" href="./custom.css" />
+</head>
+<body>
+  <div id="app"></div>
+  <script src="./vendor/scalar/standalone.js"></script>
+  <script>
+    Scalar.createApiReference('#app', {
+      url: './openapi.json',
+      metaData: {
+        title: 'Pipeelo — Documentação da API',
+        description: 'Referência completa da API da Pipeelo.',
+      },
+      searchHotKey: 'k',
+      showDeveloperTools: 'never',
+      agent: { disabled: true },
+      authentication: {
+        preferredSecurityScheme: 'http',
+        securitySchemes: {
+          http: { token: '' },
+        },
+      },
+    })
+  </script>
+</body>
+</html>
