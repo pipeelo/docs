@@ -32,25 +32,21 @@ Isso exporta o spec via Scramble, aplica o pós-processamento (grupos da sidebar
 
 ## Deploy
 
-### Vercel (recomendado)
+### Vercel (conectada ao GitHub)
 
-O site é 100% estático — sem build. Primeira vez:
-
-```bash
-npx vercel login
-npx vercel          # cria o projeto (aceite os padrões; framework: Other, sem build command)
-npx vercel --prod
-```
-
-Atualizações depois do `make docs-sync`:
+O site é 100% estático — sem build. Projeto conectado ao repositório `pipeelo/docs`: **todo push na `main` publica automaticamente**.
 
 ```bash
-npx vercel --prod
+# na api, após mudar endpoints:
+make docs-sync
+
+# aqui:
+git add openapi.json && git commit -m "Atualiza documentação" && git push
 ```
 
-Os headers de cache estão em `vercel.json` (spec sempre revalidado; bundle do Scalar imutável). Para domínio próprio (ex.: `docs.pipeelo.com`), adicione o domínio no painel da Vercel e aponte o CNAME.
+Configuração na Vercel (feita uma vez): Add New Project → Import `pipeelo/docs` → Framework **Other**, sem build command, output na raiz. Os headers de cache estão em `vercel.json` (spec sempre revalidado; bundle do Scalar imutável). Para domínio próprio (ex.: `docs.pipeelo.com`), adicione o domínio no painel e aponte o CNAME.
 
-> O plano free da Vercel é oficialmente para uso não-comercial. Alternativa com free tier sem essa restrição: Cloudflare Pages (mesmo fluxo, sem build).
+Deploy manual sem git, se precisar: `npx vercel --prod`.
 
 ### Docker (alternativa self-host)
 
