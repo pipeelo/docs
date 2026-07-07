@@ -17128,12 +17128,12 @@
             "description": "Envio transacional de templates WhatsApp por integrações."
         },
         {
-            "name": "WhatsApp Official",
-            "description": "Canais conectados via API oficial do WhatsApp."
-        },
-        {
             "name": "Templates",
             "description": "Templates de mensagem do WhatsApp Official (HSM)."
+        },
+        {
+            "name": "WhatsApp Official",
+            "description": "Canais conectados via API oficial do WhatsApp."
         },
         {
             "name": "Facebook Messenger",
@@ -17239,14 +17239,14 @@
                 "Mensagens automáticas",
                 "Mensagens rápidas",
                 "Lembretes",
-                "Notificadores"
+                "Notificadores",
+                "Templates"
             ]
         },
         {
             "name": "Canais",
             "tags": [
                 "WhatsApp Official",
-                "Templates",
                 "Facebook Messenger",
                 "Instagram",
                 "Canal In-App"
