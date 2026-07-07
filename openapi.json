@@ -3,7 +3,7 @@
     "info": {
         "title": "Pipeelo",
         "version": "1.0.0",
-        "description": "<img src=\"./assets/logo.png\" alt=\"Pipeelo\" width=\"220\" />\n\nA API da Pipeelo permite integrar a plataforma de atendimento e comunicação multicanal ao seu sistema: gerencie conversas, envie mensagens, cadastre clientes, dispare campanhas e receba eventos em tempo real via webhooks.\n\n## Base URL\n\n| Ambiente | URL |\n|---|---|\n| Produção | `https://api.pipeelo.com/v1` |\n\nTodas as requisições devem usar HTTPS e enviar o cabeçalho `Accept: application/json`.\n\n## Conceitos\n\nOs nomes usados nesta documentação têm significado preciso na Pipeelo:\n\n| Conceito | O que é |\n|---|---|\n| **Conversa** | Sessão de atendimento com um cliente em um canal. Tem protocolo único e passa por estados: aberta, pendente, em fila, encerrada e arquivada. |\n| **Cliente** | Contato atendido pela sua operação, identificado principalmente pelo telefone. Organizável com etiquetas. |\n| **Mensagem** | Item dentro de uma conversa: texto, imagem, vídeo, áudio, documento ou nota interna (visível só para a equipe). |\n| **Canal** | Meio de comunicação da conversa: WhatsApp Official, Facebook Messenger, Instagram ou voz. Um tenant pode ter várias contas conectadas por canal (subcanais). |\n| **Usuário** | Membro da sua equipe (atendente), com papel e categorias atribuídas. |\n| **Categoria** | Fila ou departamento de atendimento. Conversas são roteadas para categorias, que têm horários de atendimento próprios. |\n| **Template** | Modelo de mensagem aprovado pela Meta (HSM), obrigatório para iniciar conversas no WhatsApp fora da janela de 24 horas. |\n| **Campanha** | Envio em massa de uma mensagem para um conjunto de clientes. |\n| **Notificador** | Integração de envio transacional de templates, acionada pelo seu sistema (ex.: confirmação de pedido, lembrete de pagamento). |\n| **Mensagem rápida** | Resposta pronta reutilizável pelos atendentes durante o atendimento. |\n| **Mensagem automática** | Mensagem disparada automaticamente por eventos da conversa (ex.: fora do horário de atendimento). |\n| **Motivo de encerramento** | Classificação atribuída à conversa no momento do encerramento, usada em relatórios. |\n| **Lembrete** | Tarefa com data vinculada a um cliente e a um usuário. |\n| **Etiqueta** | Rótulo aplicado a clientes para organização e segmentação. |\n| **Webhook** | Notificação HTTP que a Pipeelo envia ao seu sistema quando eventos acontecem: `chat_started`, `chat_closed`, `chat_transferred`, `custom_event` e `lead_from_meta_ad`. |\n\n## Autenticação\n\nA API usa tokens Bearer. Para obter um token:\n\n1. Autentique-se com `POST /auth/login` usando e-mail e senha — o token retornado expira em 24 horas.\n2. Para integrações de longa duração, gere um token permanente com `POST /permanent-token` (autenticado).\n\nEnvie o token em todas as requisições:\n\n```\nAuthorization: Bearer {seu-token}\n```\n\nEndpoints marcados como públicos (como o próprio login) não exigem token.\n\n## Paginação\n\nEndpoints de listagem retornam resultados paginados no formato padrão do Laravel:\n\n```json\n{\n  \"current_page\": 1,\n  \"data\": [],\n  \"per_page\": 15,\n  \"total\": 42,\n  \"last_page\": 3\n}\n```\n\nControle a paginação com os parâmetros de query `page` e `per_page`.\n\n## Erros\n\nA API usa códigos HTTP convencionais:\n\n| Código | Significado |\n|---|---|\n| `401` | Token ausente, inválido ou expirado |\n| `403` | Sem permissão para o recurso |\n| `404` | Recurso não encontrado |\n| `422` | Erro de validação — o corpo traz `message` e `errors` por campo |\n| `429` | Limite de requisições excedido |\n\nExemplo de erro de validação:\n\n```json\n{\n  \"message\": \"O nome é obrigatório.\",\n  \"errors\": {\n    \"name\": [\"O nome é obrigatório.\"]\n  }\n}\n```\n\n## Limites de requisição\n\nAs requisições são limitadas por tenant. Ao exceder o limite, a API responde `429 Too Many Requests` — aguarde e tente novamente com backoff exponencial.\n"
+        "description": "<img src=\"./assets/logo.png\" alt=\"Pipeelo\" width=\"220\" />\n\nA API da Pipeelo permite integrar a plataforma de atendimento e comunicação multicanal ao seu sistema: gerencie conversas, envie mensagens, cadastre clientes, dispare campanhas e receba eventos em tempo real via webhooks.\n\n## Base URL\n\n| Ambiente | URL |\n|---|---|\n| Produção | `https://api.pipeelo.com/v1` |\n\nTodas as requisições devem usar HTTPS e enviar o cabeçalho `Accept: application/json`.\n\n## Conceitos\n\nOs nomes usados nesta documentação têm significado preciso na Pipeelo:\n\n| Conceito | O que é |\n|---|---|\n| **Conversa** | Sessão de atendimento com um cliente em um canal. Tem protocolo único e passa por estados: aberta, pendente, em fila, encerrada e arquivada. |\n| **Cliente** | Contato atendido pela sua operação, identificado principalmente pelo telefone. Organizável com etiquetas. |\n| **Mensagem** | Item dentro de uma conversa: texto, imagem, vídeo, áudio, documento ou nota interna (visível só para a equipe). |\n| **Canal** | Meio de comunicação da conversa: WhatsApp Official, Facebook Messenger, Instagram, voz ou canal in-app (chat dentro do seu próprio aplicativo). Um tenant pode ter várias contas conectadas por canal (subcanais). |\n| **Usuário** | Membro da sua equipe (atendente), com papel e categorias atribuídas. |\n| **Categoria** | Fila ou departamento de atendimento. Conversas são roteadas para categorias, que têm horários de atendimento próprios. |\n| **Template** | Modelo de mensagem aprovado pela Meta (HSM), obrigatório para iniciar conversas no WhatsApp fora da janela de 24 horas. |\n| **Campanha** | Envio em massa de uma mensagem para um conjunto de clientes. |\n| **Notificador** | Integração de envio transacional de templates, acionada pelo seu sistema (ex.: confirmação de pedido, lembrete de pagamento). |\n| **Mensagem rápida** | Resposta pronta reutilizável pelos atendentes durante o atendimento. |\n| **Mensagem automática** | Mensagem disparada automaticamente por eventos da conversa (ex.: fora do horário de atendimento). |\n| **Motivo de encerramento** | Classificação atribuída à conversa no momento do encerramento, usada em relatórios. |\n| **Lembrete** | Tarefa com data vinculada a um cliente e a um usuário. |\n| **Etiqueta** | Rótulo aplicado a clientes para organização e segmentação. |\n| **Webhook** | Notificação HTTP que a Pipeelo envia ao seu sistema quando eventos acontecem: `chat_started`, `chat_closed`, `chat_transferred`, `custom_event` e `lead_from_meta_ad`. |\n\n## Autenticação\n\nA API usa tokens Bearer. Para obter um token:\n\n1. Autentique-se com `POST /auth/login` usando e-mail e senha — o token retornado expira em 24 horas.\n2. Para integrações de longa duração, gere um token permanente com `POST /permanent-token` (autenticado).\n\nEnvie o token em todas as requisições:\n\n```\nAuthorization: Bearer {seu-token}\n```\n\nEndpoints marcados como públicos (como o próprio login) não exigem token.\n\n## Canal In-App\n\nTransforme o seu próprio aplicativo em um canal de atendimento: o app fala direto com a Pipeelo — sem servidor intermediário — e a conversa passa pelo fluxo normal da sua operação, com IA, filas e atendentes.\n\n**Como integrar:**\n\n1. **Registre um canal** com `POST /app-channel` (autenticado). O `id` retornado é o identificador público do canal: ele vai dentro do app e não é segredo. O token da API **nunca** deve ir no app.\n2. **Identifique o usuário pelo `external_id`** — o id que ele já tem no seu sistema. No primeiro contato a Pipeelo cria o cliente automaticamente (envie `name`, `phone` e `email` opcionais para preencher o cadastro); nas próximas mensagens, o mesmo `external_id` é a mesma pessoa. Use um valor opaco (como um uuid), nunca sequencial.\n3. **Envie mensagens** com `POST /app-channel/message/{identifier}` (público, sem token): texto ou um arquivo por vez. Texto pode ir como `application/json`; arquivo exige `multipart/form-data`.\n4. **Receba as respostas em tempo real** conectando no websocket da Pipeelo (protocolo Pusher):\n\n```js\nconst pusher = new Pusher('KEY_DO_WEBSOCKET', {\n    wsHost: 'soketi.pipeelo.com',\n    wssPort: 443,\n    forceTLS: true,\n    enabledTransports: ['ws', 'wss'],\n    cluster: 'mt1',\n});\n\npusher\n    .subscribe(`app-channel.${identifier}.${externalId}`)\n    .bind('app-channel.message', (mensagem) => {\n        // renderize a mensagem na conversa\n    });\n```\n\n5. **Carregue o histórico** com `GET /app-channel/history/{identifier}?external_id=...` ao abrir o app — a linha do tempo completa da conversa, paginada por cursor.\n\n**A conversa é contínua.** Para o usuário do app não existe atendimento \"aberto\" ou \"encerrado\": ele sempre envia pela mesma rota, sempre recebe no mesmo canal de socket e o histórico devolve a linha do tempo inteira. Internamente, cada atendimento abre e encerra conversas normais na sua operação — com protocolo, fila e relatórios — sem o usuário perceber.\n\n**Formato da mensagem** — o mesmo no socket, no histórico e no webhook:\n\n```json\n{\n    \"message_id\": \"uuid\",\n    \"chat_id\": \"uuid\",\n    \"external_id\": \"id do usuário no seu app\",\n    \"type\": \"text\",\n    \"text\": \"Olá!\",\n    \"media_url\": null,\n    \"from\": \"customer\",\n    \"created_at\": \"2026-07-06T20:11:42-03:00\"\n}\n```\n\n- `type`: `text`, `image`, `audio`, `video` ou `document`.\n- `from`: `customer` é o usuário do app; `company` é a resposta da IA ou de um atendente.\n- `media_url`: link temporário do arquivo, válido por 1 hora — se expirar, recarregue o histórico para receber um link novo.\n- O socket entrega os dois lados da conversa, incluindo o eco das mensagens do próprio app: deduplique pelo `message_id`, que também é retornado no envio, e ordene pela `created_at`.\n\n**Arquivos.** Imagem JPEG/PNG até 50 MB; áudio (AAC, MP3, MP4, OGG, WAV, WebM e outros) até 30 MB; vídeo MP4/3GP até 100 MB; documento (PDF, Word, Excel, PowerPoint, CSV, TXT, ZIP e outros) até 50 MB. Os formatos aceitos estão detalhados no endpoint de envio.\n\n**Reconexão.** O socket não reenvia mensagens perdidas: ao abrir o app ou reconectar depois de um período offline, recarregue o histórico e siga acompanhando pelo socket a partir dali.\n\n**Backend opcional (webhook).** Configure `webhook_url` no canal e a Pipeelo envia um POST ao seu servidor com cada mensagem da conversa, dos dois lados, no mesmo formato acima. Serve para disparar push notification quando o app está fechado e para espelhar a conversa no seu sistema. Sem webhook, o usuário vê as respostas ao reabrir o app, pelo histórico. Do lado do seu servidor: responda 2xx rápido e processe depois — sem resposta em 10 segundos, ou com status de erro, a Pipeelo tenta de novo até 3 vezes. A entrega é pelo menos uma vez e sem garantia de ordem: deduplique pelo `message_id` e ordene pela `created_at`.\n\n**Limites.** Os endpoints públicos aceitam até 30 requisições por minuto por usuário (`identifier` + `external_id`) e 120 por minuto por IP. Acima disso a resposta é `429` — aguarde e tente novamente.\n\n## Paginação\n\nEndpoints de listagem retornam resultados paginados no formato padrão do Laravel:\n\n```json\n{\n  \"current_page\": 1,\n  \"data\": [],\n  \"per_page\": 15,\n  \"total\": 42,\n  \"last_page\": 3\n}\n```\n\nControle a paginação com os parâmetros de query `page` e `per_page`.\n\n## Erros\n\nA API usa códigos HTTP convencionais:\n\n| Código | Significado |\n|---|---|\n| `401` | Token ausente, inválido ou expirado |\n| `403` | Sem permissão para o recurso |\n| `404` | Recurso não encontrado |\n| `422` | Erro de validação — o corpo traz `message` e `errors` por campo |\n| `429` | Limite de requisições excedido |\n\nExemplo de erro de validação:\n\n```json\n{\n  \"message\": \"O nome é obrigatório.\",\n  \"errors\": {\n    \"name\": [\"O nome é obrigatório.\"]\n  }\n}\n```\n\n## Limites de requisição\n\nAs requisições são limitadas por tenant. Ao exceder o limite, a API responde `429 Too Many Requests` — aguarde e tente novamente com backoff exponencial.\n"
     },
     "servers": [
         {
@@ -78,7 +78,7 @@
         "/auth/login": {
             "post": {
                 "operationId": "login",
-                "description": "Autentica um usuário com e-mail e senha e retorna um token Bearer válido por 24 horas. Informe `device_name` para identificar a origem do token. Para integrações de longa duração, gere um token permanente com `POST /permanent-token` após o login.",
+                "description": "Autentica um usuário com e-mail e senha e retorna um token Bearer válido por 24 horas. Informe `device_name` para identificar a origem do token. Se a verificação em duas etapas estiver ativa para a empresa, a resposta será `{\"two_factor_required\": true}` e o token deverá ser obtido com o código enviado por e-mail via `POST /auth/login/two-factor`. Se a rotação de senha estiver ativa para a empresa e a senha estiver vencida, a resposta será 422 com `{\"code\": \"password_expired\"}` e a senha deverá ser redefinida pelo fluxo de recuperação de senha. Para integrações de longa duração, gere um token permanente com `POST /permanent-token` após o login.",
                 "summary": "Autenticar usuário",
                 "tags": [
                     "Autenticação"
@@ -89,6 +89,116 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/LoginUserRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "token": {
+                                                    "type": "string"
+                                                },
+                                                "id": {
+                                                    "type": "string"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "email": {
+                                                    "type": "string"
+                                                },
+                                                "tenant_id": {
+                                                    "type": "string"
+                                                },
+                                                "role_slug": {
+                                                    "type": "string"
+                                                },
+                                                "status": {
+                                                    "$ref": "#/components/schemas/UserStatusEnum"
+                                                },
+                                                "tenant_created": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ],
+                                                    "format": "date-time"
+                                                },
+                                                "check_active": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "active",
+                                                        "inactive"
+                                                    ]
+                                                },
+                                                "profile_image": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "is_dark_mode": {
+                                                    "type": "boolean"
+                                                }
+                                            },
+                                            "required": [
+                                                "token",
+                                                "id",
+                                                "name",
+                                                "email",
+                                                "tenant_id",
+                                                "role_slug",
+                                                "status",
+                                                "tenant_created",
+                                                "check_active",
+                                                "profile_image",
+                                                "is_dark_mode"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "two_factor_required": {
+                                                    "type": "boolean"
+                                                }
+                                            },
+                                            "required": [
+                                                "two_factor_required"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                },
+                "security": []
+            }
+        },
+        "/auth/login/two-factor": {
+            "post": {
+                "operationId": "auth.loginTwoFactor",
+                "description": "Valida o código de 6 dígitos enviado por e-mail após o login com senha e retorna o token Bearer válido por 24 horas. O código expira em 10 minutos e é de uso único.",
+                "summary": "Concluir login com verificação em duas etapas",
+                "tags": [
+                    "Autenticação"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TwoFactorLoginRequest"
                             }
                         }
                     }
@@ -822,6 +932,344 @@
                 }
             }
         },
+        "/app-channel/message/{identifier}": {
+            "post": {
+                "operationId": "appChannelMessage.store",
+                "description": "Endpoint público, sem token. O `{identifier}` é o id do canal in-app registrado em `POST /app-channel`.\n\n**Identificação:** o usuário é identificado pelo `external_id` — o id que ele já tem no seu sistema (use um valor opaco, como uuid, nunca sequencial). No primeiro contato o cliente é criado automaticamente, com `name`, `phone` e `email` opcionais entrando no cadastro; nas mensagens seguintes, o mesmo `external_id` é a mesma pessoa e esses campos são ignorados.\n\n**Conteúdo:** exatamente um por requisição — `text` (em `application/json` ou multipart) ou um arquivo em `multipart/form-data`: `image` (JPEG/PNG, até 50 MB), `audio` (AAC, MP3, MP4, OGG, WAV, WebM e outros, até 30 MB), `video` (MP4/3GP, até 100 MB) ou `document` (PDF, Word, Excel, PowerPoint, CSV, TXT, ZIP e outros, até 50 MB).\n\n**Respostas em tempo real:** a conversa segue o fluxo normal de atendimento (IA e atendentes). As respostas chegam no evento `app-channel.message` do canal público de websocket `app-channel.{identifier}.{external_id}` (protocolo Pusher, host `soketi.pipeelo.com`) e no webhook do canal, quando configurado — sempre no mesmo formato de mensagem do histórico. O socket entrega os dois lados da conversa, incluindo o eco desta mensagem; mensagens perdidas com o app fechado não são reenviadas pelo socket — recarregue o histórico ao reabrir.\n\n**Observações:** não há deduplicação de reenvio no servidor — em caso de timeout, deduplique pelo `message_id` retornado. Cliente bloqueado recebe `200` com corpo vazio. Identificador inexistente retorna `404`. Limite: 30 requisições/minuto por usuário (`identifier` + `external_id`) e 120/minuto por IP — acima disso, `429`.",
+                "summary": "Enviar mensagem pelo app (público)",
+                "tags": [
+                    "Canal In-App"
+                ],
+                "parameters": [
+                    {
+                        "name": "identifier",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SendAppChannelMessageRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "customer_id": {
+                                            "type": "string",
+                                            "format": "uuid"
+                                        },
+                                        "chat_id": {
+                                            "type": "string",
+                                            "format": "uuid"
+                                        },
+                                        "message_id": {
+                                            "type": "string",
+                                            "format": "uuid"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/app-channel/history/{identifier}": {
+            "get": {
+                "operationId": "appChannelMessage.history",
+                "description": "Endpoint público, sem token: retorna a linha do tempo de mensagens do usuário no canal, da mais recente para a mais antiga, paginada por cursor. Use ao abrir o app, ao reconectar o websocket (o socket não reenvia mensagens perdidas) e ao trocar de aparelho.\n\nA linha do tempo é contínua e cruza todos os atendimentos do cliente — para o app não existe conversa aberta ou encerrada. Cada item tem o mesmo formato do evento de socket: `message_id`, `chat_id`, `external_id`, `type` (`text`, `image`, `audio`, `video` ou `document`), `text`, `media_url` (link temporário válido por 1 hora — se expirar, recarregue o histórico para gerar um novo), `from` (`customer` = usuário do app; `company` = IA ou atendente) e `created_at`.\n\n`external_id` desconhecido retorna a página vazia. Para a próxima página, envie o valor de `next_cursor` no parâmetro `cursor`. Mesmo limite de requisições do endpoint de envio.",
+                "summary": "Histórico da conversa (público)",
+                "tags": [
+                    "Canal In-App"
+                ],
+                "parameters": [
+                    {
+                        "name": "identifier",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "external_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 255
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1,
+                            "maximum": 100
+                        }
+                    }
+                ],
+                "responses": {
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "message_id": {
+                                                        "type": "string",
+                                                        "format": "uuid"
+                                                    },
+                                                    "chat_id": {
+                                                        "type": "string",
+                                                        "format": "uuid"
+                                                    },
+                                                    "external_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "type": {
+                                                        "type": "string"
+                                                    },
+                                                    "text": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "media_url": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "from": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "customer",
+                                                            "company"
+                                                        ]
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "per_page": {
+                                            "type": "integer"
+                                        },
+                                        "next_cursor": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "next_page_url": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "prev_cursor": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "prev_page_url": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/app-channel": {
+            "get": {
+                "operationId": "app-channel.index",
+                "description": "Retorna os canais in-app registrados, ordenados por nome. O `id` de cada canal é o identificador público usado pelo aplicativo nos endpoints de envio e histórico.",
+                "summary": "Listar canais in-app",
+                "tags": [
+                    "Canal In-App"
+                ],
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/AppChannelData"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "operationId": "app-channel.store",
+                "description": "Registra um app do tenant como canal de atendimento. O `id` retornado é o identificador público do canal: ele vai dentro do aplicativo (não é segredo) e identifica o canal nos endpoints públicos de envio e histórico e no canal de websocket — o token da API, esse sim secreto, nunca deve ir no app.\n\n`category_id` define a fila para onde as conversas vão no atendimento humano e `assistant_id` o agente de IA que atende primeiro; sem eles, vale a distribuição padrão da conta.\n\n`webhook_url` é opcional: quando configurada, o seu servidor recebe um POST com cada mensagem da conversa, dos dois lados, no mesmo formato do evento de socket. Responda 2xx rápido e processe depois — sem resposta em 10 segundos, ou com status de erro, a entrega é retentada até 3 vezes. A entrega é pelo menos uma vez e sem garantia de ordem: deduplique pelo `message_id` e ordene pela `created_at`. Serve para disparar push notification com o app fechado e para espelhar a conversa no seu sistema.",
+                "summary": "Registrar canal in-app",
+                "tags": [
+                    "Canal In-App"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RegisterAppChannelRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AppChannelData"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/app-channel/{id}": {
+            "put": {
+                "operationId": "app-channel.update",
+                "description": "Atualiza o nome, a categoria, o assistente de IA e a URL de webhook do canal.",
+                "summary": "Atualizar canal in-app",
+                "tags": [
+                    "Canal In-App"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateAppChannelRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AppChannelData"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "app-channel.destroy",
+                "description": "Remove o canal in-app. Retorna 422 quando existem conversas ativas associadas a ele.",
+                "summary": "Remover canal in-app",
+                "tags": [
+                    "Canal In-App"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/categories": {
             "get": {
                 "operationId": "categories.index",
@@ -1300,6 +1748,31 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/IncomingCallContextData"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/calls/monitor": {
+            "get": {
+                "operationId": "call.monitor",
+                "description": "Retorna o estado em tempo real da operação de voz: agentes (disponível, recebendo chamada, em ligação ou offline) e o total de ligações aguardando na fila por departamento. Lê apenas a projeção em cache, suportando polling agressivo.",
+                "summary": "Monitorar operação de voz",
+                "tags": [
+                    "Chamadas"
+                ],
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CallMonitorData"
                                 }
                             }
                         }
@@ -4432,9 +4905,35 @@
             }
         },
         "/instagram": {
+            "get": {
+                "operationId": "instagram.index",
+                "description": "Retorna as contas do Instagram conectadas, ordenadas por username.",
+                "summary": "Listar contas Instagram",
+                "tags": [
+                    "Instagram"
+                ],
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/InstagramAccountData"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
             "post": {
                 "operationId": "instagram.store",
-                "description": "Registra uma conta do Instagram para atendimento. Disponível apenas para tenants com a integração habilitada.",
+                "description": "Registra uma conta profissional do Instagram via Business Login, trocando o `code` do OAuth pelo token de longa duração da conta e assinando os webhooks de mensagens.",
                 "summary": "Conectar conta Instagram",
                 "tags": [
                     "Instagram"
@@ -4450,26 +4949,6 @@
                     }
                 },
                 "responses": {
-                    "403": {
-                        "description": "An error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "description": "Error overview.",
-                                            "example": ""
-                                        }
-                                    },
-                                    "required": [
-                                        "message"
-                                    ]
-                                }
-                            }
-                        }
-                    },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     },
@@ -4485,6 +4964,78 @@
                                 }
                             }
                         }
+                    }
+                }
+            }
+        },
+        "/instagram/{id}": {
+            "put": {
+                "operationId": "instagram.update",
+                "description": "Atualiza a categoria e o assistente de IA de uma conta do Instagram conectada.",
+                "summary": "Atualizar conta Instagram",
+                "tags": [
+                    "Instagram"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateInstagramRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InstagramAccountData"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "instagram.destroy",
+                "summary": "Remover conta Instagram",
+                "tags": [
+                    "Instagram"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
             }
@@ -5933,6 +6484,570 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/analytics/call/stats": {
+            "get": {
+                "operationId": "analytics.call.stats",
+                "description": "Retorna os totais de chamadas do período: volume por direção, recebidas atendidas, perdidas e com recado, e a duração média (em segundos) das chamadas atendidas. Exige `start_period` e `end_period` (máximo de 90 dias).",
+                "summary": "Consultar resumo de chamadas",
+                "tags": [
+                    "Métricas de chamadas"
+                ],
+                "parameters": [
+                    {
+                        "name": "start_period",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "end_period",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "inbound",
+                                "outbound"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "department_id",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "call_number_id",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "granularity",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "day",
+                                "hour"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "total": {
+                                            "type": "integer"
+                                        },
+                                        "inbound": {
+                                            "type": "integer"
+                                        },
+                                        "outbound": {
+                                            "type": "integer"
+                                        },
+                                        "answered": {
+                                            "type": "integer",
+                                            "description": "Recebidas atendidas."
+                                        },
+                                        "missed": {
+                                            "type": "integer",
+                                            "description": "Recebidas perdidas."
+                                        },
+                                        "voicemail": {
+                                            "type": "integer",
+                                            "description": "Recebidas que caíram no recado."
+                                        },
+                                        "average_duration": {
+                                            "type": "integer",
+                                            "description": "Duração média das atendidas, em segundos."
+                                        }
+                                    },
+                                    "required": [
+                                        "total",
+                                        "inbound",
+                                        "outbound",
+                                        "answered",
+                                        "missed",
+                                        "voicemail",
+                                        "average_duration"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/call/graph": {
+            "get": {
+                "operationId": "analytics.call.graph",
+                "description": "Retorna a contagem de chamadas por período para gráficos, com totais por direção e `granularity` de dia ou hora. Exige `start_period` e `end_period` (máximo de 90 dias).",
+                "summary": "Consultar volume de chamadas",
+                "tags": [
+                    "Métricas de chamadas"
+                ],
+                "parameters": [
+                    {
+                        "name": "start_period",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "end_period",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "inbound",
+                                "outbound"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "department_id",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "call_number_id",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "granularity",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "day",
+                                "hour"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "period": {
+                                                "type": "string"
+                                            },
+                                            "total": {
+                                                "type": "integer"
+                                            },
+                                            "inbound": {
+                                                "type": "integer"
+                                            },
+                                            "outbound": {
+                                                "type": "integer"
+                                            }
+                                        },
+                                        "required": [
+                                            "period",
+                                            "total",
+                                            "inbound",
+                                            "outbound"
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/call/stats-by-user": {
+            "get": {
+                "operationId": "analytics.call.stats-by-user",
+                "description": "Retorna, por atendente, as chamadas recebidas atendidas, as originadas, o tempo total em ligação e a duração média (em segundos). Exige `start_period` e `end_period` (máximo de 90 dias).",
+                "summary": "Consultar chamadas por atendente",
+                "tags": [
+                    "Métricas de chamadas"
+                ],
+                "parameters": [
+                    {
+                        "name": "start_period",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "end_period",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "inbound",
+                                "outbound"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "department_id",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "call_number_id",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "granularity",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "day",
+                                "hour"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "user_id": {
+                                                "type": "string"
+                                            },
+                                            "answered": {
+                                                "type": "integer",
+                                                "description": "Recebidas atendidas."
+                                            },
+                                            "originated": {
+                                                "type": "integer",
+                                                "description": "Chamadas originadas."
+                                            },
+                                            "total_duration": {
+                                                "type": "integer",
+                                                "description": "Tempo total em ligação, em segundos."
+                                            },
+                                            "average_duration": {
+                                                "type": "integer",
+                                                "description": "Duração média das atendidas, em segundos."
+                                            }
+                                        },
+                                        "required": [
+                                            "user_id",
+                                            "answered",
+                                            "originated",
+                                            "total_duration",
+                                            "average_duration"
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/call/stats-by-department": {
+            "get": {
+                "operationId": "analytics.call.stats-by-department",
+                "description": "Retorna, por departamento, o total de chamadas, as recebidas atendidas e perdidas e a duração média (em segundos). Exige `start_period` e `end_period` (máximo de 90 dias).",
+                "summary": "Consultar chamadas por departamento",
+                "tags": [
+                    "Métricas de chamadas"
+                ],
+                "parameters": [
+                    {
+                        "name": "start_period",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "end_period",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "inbound",
+                                "outbound"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "department_id",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "call_number_id",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "granularity",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "day",
+                                "hour"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "department_id": {
+                                                "type": "string"
+                                            },
+                                            "total": {
+                                                "type": "integer"
+                                            },
+                                            "answered": {
+                                                "type": "integer",
+                                                "description": "Recebidas atendidas."
+                                            },
+                                            "missed": {
+                                                "type": "integer",
+                                                "description": "Recebidas perdidas."
+                                            },
+                                            "average_duration": {
+                                                "type": "integer",
+                                                "description": "Duração média das atendidas, em segundos."
+                                            }
+                                        },
+                                        "required": [
+                                            "department_id",
+                                            "total",
+                                            "answered",
+                                            "missed",
+                                            "average_duration"
+                                        ]
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -9942,6 +11057,30 @@
                 ],
                 "title": "AddReasonChatRequest"
             },
+            "AppChannelData": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "tenant_id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "category_id": {
+                        "type": "string"
+                    },
+                    "assistant_id": {
+                        "type": "string"
+                    },
+                    "webhook_url": {
+                        "type": "string"
+                    }
+                },
+                "title": "AppChannelData"
+            },
             "ArchiveChatRequest": {
                 "type": "object",
                 "properties": {
@@ -10356,6 +11495,44 @@
                 ],
                 "title": "CallDirectionEnum"
             },
+            "CallMonitorData": {
+                "type": "object",
+                "properties": {
+                    "agents": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "queue": {
+                        "$ref": "#/components/schemas/CallMonitorQueueData"
+                    }
+                },
+                "required": [
+                    "agents",
+                    "queue"
+                ],
+                "title": "CallMonitorData"
+            },
+            "CallMonitorQueueData": {
+                "type": "object",
+                "properties": {
+                    "total": {
+                        "type": "integer"
+                    },
+                    "departments": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "total",
+                    "departments"
+                ],
+                "title": "CallMonitorQueueData"
+            },
             "CallNumberData": {
                 "type": "object",
                 "properties": {
@@ -10510,6 +11687,9 @@
                     "warmup_minutes": {
                         "type": "string"
                     },
+                    "reassign_after_minutes": {
+                        "type": "string"
+                    },
                     "distribution_type": {
                         "type": "string"
                     },
@@ -10526,6 +11706,7 @@
                     "max_chats_in_progress",
                     "reduced_max_chats_in_progress",
                     "warmup_minutes",
+                    "reassign_after_minutes",
                     "distribution_type",
                     "fallback_category_id"
                 ],
@@ -10702,6 +11883,12 @@
                             "null"
                         ],
                         "format": "date-time"
+                    },
+                    "customer_initiated": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
                     }
                 },
                 "required": [
@@ -10727,7 +11914,8 @@
                     "last_message_disable_message",
                     "closed_by_user_id",
                     "is_archived",
-                    "deleted_at"
+                    "deleted_at",
+                    "customer_initiated"
                 ],
                 "title": "Chat"
             },
@@ -11199,7 +12387,9 @@
                             "IMPORTED",
                             "IMPORTED_HISTORY",
                             "FACEBOOK_MESSENGER",
-                            "SIMULATION"
+                            "INSTAGRAM",
+                            "SIMULATION",
+                            "APP"
                         ]
                     },
                     "customer_limit": {
@@ -11272,6 +12462,13 @@
                             "null"
                         ],
                         "minimum": 0
+                    },
+                    "reassign_after_minutes": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 1
                     },
                     "distribution_type": {
                         "type": [
@@ -12775,9 +13972,6 @@
                     "page_id": {
                         "type": "string"
                     },
-                    "status": {
-                        "type": "string"
-                    },
                     "category_id": {
                         "type": "string"
                     },
@@ -13529,6 +14723,41 @@
                 ],
                 "title": "ReasonChatRequest"
             },
+            "RegisterAppChannelRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "category_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "assistant_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "webhook_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uri",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "name"
+                ],
+                "title": "RegisterAppChannelRequest"
+            },
             "RegisterFacebookMessengerRequest": {
                 "type": "object",
                 "properties": {
@@ -13562,10 +14791,10 @@
             "RegisterInstagramRequest": {
                 "type": "object",
                 "properties": {
-                    "page_id": {
+                    "code": {
                         "type": "string"
                     },
-                    "access_token": {
+                    "redirect_uri": {
                         "type": "string"
                     },
                     "category_id": {
@@ -13584,8 +14813,8 @@
                     }
                 },
                 "required": [
-                    "page_id",
-                    "access_token"
+                    "code",
+                    "redirect_uri"
                 ],
                 "title": "RegisterInstagramRequest"
             },
@@ -13736,6 +14965,83 @@
                     "slug"
                 ],
                 "title": "RoleResource"
+            },
+            "SendAppChannelMessageRequest": {
+                "type": "object",
+                "properties": {
+                    "external_id": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "phone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "email": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "email",
+                        "maxLength": 255
+                    },
+                    "text": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "image": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "binary",
+                        "contentMediaType": "application/octet-stream",
+                        "maxLength": 50000
+                    },
+                    "audio": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "binary",
+                        "contentMediaType": "application/octet-stream",
+                        "maxLength": 30000
+                    },
+                    "video": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "binary",
+                        "contentMediaType": "application/octet-stream",
+                        "maxLength": 100000
+                    },
+                    "document": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "binary",
+                        "contentMediaType": "application/octet-stream",
+                        "maxLength": 50000
+                    }
+                },
+                "required": [
+                    "external_id"
+                ],
+                "title": "SendAppChannelMessageRequest"
             },
             "SendAudioMessageRequest": {
                 "type": "object",
@@ -14445,6 +15751,61 @@
                 ],
                 "title": "TwilioNumberData"
             },
+            "TwoFactorLoginRequest": {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "format": "email"
+                    },
+                    "code": {
+                        "type": "string"
+                    },
+                    "device_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "email",
+                    "code"
+                ],
+                "title": "TwoFactorLoginRequest"
+            },
+            "UpdateAppChannelRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "category_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "assistant_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "webhook_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uri",
+                        "maxLength": 255
+                    }
+                },
+                "title": "UpdateAppChannelRequest"
+            },
             "UpdateAutoMessageRequest": {
                 "type": "object",
                 "properties": {
@@ -14561,6 +15922,13 @@
                             "null"
                         ],
                         "minimum": 0
+                    },
+                    "reassign_after_minutes": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 1
                     },
                     "distribution_type": {
                         "type": [
@@ -14742,6 +16110,26 @@
                     }
                 },
                 "title": "UpdateHolidayRequest"
+            },
+            "UpdateInstagramRequest": {
+                "type": "object",
+                "properties": {
+                    "category_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "assistant_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    }
+                },
+                "title": "UpdateInstagramRequest"
             },
             "UpdateMessageTemplateRequest": {
                 "type": "object",
@@ -15756,6 +17144,10 @@
             "description": "Contas do Instagram conectadas."
         },
         {
+            "name": "Canal In-App",
+            "description": "Canal de atendimento dentro do aplicativo do tenant: envio público, socket e histórico."
+        },
+        {
             "name": "Usuários",
             "description": "Gestão de usuários (atendentes) do tenant."
         },
@@ -15790,6 +17182,10 @@
         {
             "name": "Métricas de clientes",
             "description": "Indicadores de sessões de clientes."
+        },
+        {
+            "name": "Métricas de chamadas",
+            "description": "Indicadores de chamadas de voz: volume, resultado e duração."
         },
         {
             "name": "Exportações",
@@ -15852,7 +17248,8 @@
                 "WhatsApp Official",
                 "Templates",
                 "Facebook Messenger",
-                "Instagram"
+                "Instagram",
+                "Canal In-App"
             ]
         },
         {
@@ -15877,6 +17274,7 @@
             "tags": [
                 "Métricas de conversas",
                 "Métricas de clientes",
+                "Métricas de chamadas",
                 "Exportações"
             ]
         },
