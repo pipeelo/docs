@@ -1270,6 +1270,407 @@
                 }
             }
         },
+        "/website-channel/message/{identifier}": {
+            "post": {
+                "operationId": "websiteChannelMessage.store",
+                "description": "Endpoint público, sem token. O `{identifier}` é o id do canal do site registrado em `POST /website-channel`.\n\n**Identificação:** o visitante é identificado pelo `external_id` — o token de sessão uuid v4 cunhado pelo widget no primeiro uso e guardado no navegador. O formato uuid é obrigatório (`422` caso contrário): o token é a proteção prática do socket e do histórico, então nunca use um dado do usuário (email, id no site) como token. No primeiro contato o visitante é criado automaticamente com o nome \"Visitante\" + os últimos 6 caracteres do token; `name`, `phone` e `email` opcionais entram no cadastro nesse momento (ex.: formulário de pré-chat) e são ignorados nas mensagens seguintes.\n\n**Conteúdo:** exatamente um por requisição — `text` (em `application/json` ou multipart) ou um arquivo em `multipart/form-data`: `image` (JPEG/PNG, até 50 MB), `audio` (AAC, MP3, MP4, OGG, WAV, WebM e outros, até 30 MB), `video` (MP4/3GP, até 100 MB) ou `document` (PDF, Word, Excel, PowerPoint, CSV, TXT, ZIP e outros, até 50 MB).\n\n**Respostas em tempo real:** a conversa segue o fluxo normal de atendimento (IA e atendentes). As respostas chegam no evento `website-channel.message` do canal público de websocket `website-channel.{identifier}.{external_id}` (protocolo Pusher, host `soketi.pipeelo.com`), sempre no mesmo formato de mensagem do histórico. O socket entrega os dois lados da conversa, incluindo o eco desta mensagem; mensagens perdidas com a página fechada não são reenviadas pelo socket — recarregue o histórico ao reabrir.\n\n**Observações:** não há deduplicação de reenvio no servidor — em caso de timeout, deduplique pelo `message_id` retornado. Visitante bloqueado recebe `200` com corpo vazio. Identificador inexistente retorna `404`. Limite: 30 requisições/minuto por visitante (`identifier` + `external_id`) e 120/minuto por IP — acima disso, `429`.",
+                "summary": "Enviar mensagem pelo widget (público)",
+                "tags": [
+                    "Canal do Site"
+                ],
+                "parameters": [
+                    {
+                        "name": "identifier",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SendWebsiteChannelMessageRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "customer_id": {
+                                            "type": "string",
+                                            "format": "uuid"
+                                        },
+                                        "chat_id": {
+                                            "type": "string",
+                                            "format": "uuid"
+                                        },
+                                        "message_id": {
+                                            "type": "string",
+                                            "format": "uuid"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/website-channel/history/{identifier}": {
+            "get": {
+                "operationId": "websiteChannelMessage.history",
+                "description": "Endpoint público, sem token: retorna a linha do tempo de mensagens do visitante no canal, da mais recente para a mais antiga, paginada por cursor. Use ao abrir a página e ao reconectar o websocket (o socket não reenvia mensagens perdidas) — o histórico é a fonte de verdade da conversa.\n\nA linha do tempo é contínua e cruza todos os atendimentos do visitante — para o widget não existe conversa aberta ou encerrada. Cada item tem o mesmo formato do evento de socket: `message_id`, `chat_id`, `external_id`, `type` (`text`, `image`, `audio`, `video` ou `document`), `text`, `media_url` (link temporário válido por 1 hora — se expirar, recarregue o histórico para gerar um novo), `from` (`customer` = visitante; `company` = IA ou atendente) e `created_at`.\n\n`external_id` desconhecido retorna a página vazia. Para a próxima página, envie o valor de `next_cursor` no parâmetro `cursor`. Mesmo limite de requisições do endpoint de envio.",
+                "summary": "Histórico da conversa do visitante (público)",
+                "tags": [
+                    "Canal do Site"
+                ],
+                "parameters": [
+                    {
+                        "name": "identifier",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "external_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1,
+                            "maximum": 100
+                        }
+                    }
+                ],
+                "responses": {
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "message_id": {
+                                                        "type": "string",
+                                                        "format": "uuid"
+                                                    },
+                                                    "chat_id": {
+                                                        "type": "string",
+                                                        "format": "uuid"
+                                                    },
+                                                    "external_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "type": {
+                                                        "type": "string"
+                                                    },
+                                                    "text": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "media_url": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "from": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "customer",
+                                                            "company"
+                                                        ]
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "per_page": {
+                                            "type": "integer"
+                                        },
+                                        "next_cursor": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "next_page_url": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "prev_cursor": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "prev_page_url": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/website-channel/config/{identifier}": {
+            "get": {
+                "operationId": "websiteChannelMessage.config",
+                "description": "Endpoint público, sem token: devolve a configuração do widget para o boot — `name`, `widget_color`, `welcome_message`, `theme` (`light` ou `dark`) e `message_preview` (quando preenchida, o widget a exibe como teaser junto à bolha antes de abrir; `null` = sem teaser). O `{identifier}` é o id do canal registrado em `POST /website-channel`.\n\nA resposta é cacheável (`Cache-Control` público de 5 minutos) — mudanças de configuração demoram esse tanto para refletir. Identificador inexistente retorna `404`. Limite: 300 requisições/minuto por IP.",
+                "summary": "Config do widget (público)",
+                "tags": [
+                    "Canal do Site"
+                ],
+                "parameters": [
+                    {
+                        "name": "identifier",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "name": {
+                                            "type": "string"
+                                        },
+                                        "widget_color": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "welcome_message": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "theme": {
+                                            "type": "string",
+                                            "enum": [
+                                                "light",
+                                                "dark"
+                                            ]
+                                        },
+                                        "message_preview": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/website-channel": {
+            "get": {
+                "operationId": "website-channel.index",
+                "description": "Retorna os canais do site registrados, ordenados por nome. O `id` de cada canal é o identificador público de embed usado pelo widget nos endpoints de config, envio e histórico.",
+                "summary": "Listar canais do site",
+                "tags": [
+                    "Canal do Site"
+                ],
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/WebsiteChannelData"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "operationId": "website-channel.store",
+                "description": "Registra um site do tenant como canal de atendimento via widget. O `id` retornado é o identificador público de embed: ele vai no snippet colado no site (não é segredo) e identifica o canal nos endpoints públicos e no canal de websocket.\n\n`category_id` define a fila para onde as conversas vão no atendimento humano e `assistant_id` o agente de IA que atende primeiro; sem eles, vale a distribuição padrão da conta.\n\n`widget_color`, `welcome_message`, `theme` (`light` ou `dark`, padrão `light`) e `message_preview` compõem a configuração do widget, devolvida pelo endpoint público de config. `message_preview`, quando preenchida, aparece como teaser junto à bolha antes de o visitante abrir o widget.",
+                "summary": "Registrar canal do site",
+                "tags": [
+                    "Canal do Site"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RegisterWebsiteChannelRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WebsiteChannelData"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/website-channel/{id}": {
+            "put": {
+                "operationId": "website-channel.update",
+                "description": "Atualiza o nome, a categoria, o assistente de IA, a cor, o tema, a mensagem de boas-vindas e o teaser (`message_preview`) do widget. Mudanças de config podem levar alguns minutos para refletir no widget, por causa do cache do endpoint público.",
+                "summary": "Atualizar canal do site",
+                "tags": [
+                    "Canal do Site"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateWebsiteChannelRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WebsiteChannelData"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "website-channel.destroy",
+                "description": "Remove o canal do site. Retorna 422 quando existem conversas ativas associadas a ele.",
+                "summary": "Remover canal do site",
+                "tags": [
+                    "Canal do Site"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/categories": {
             "get": {
                 "operationId": "categories.index",
@@ -7157,6 +7558,18 @@
                         }
                     },
                     {
+                        "name": "window",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1,
+                            "maximum": 365
+                        }
+                    },
+                    {
                         "name": "granularity",
                         "in": "query",
                         "schema": {
@@ -7274,6 +7687,18 @@
                                 "null"
                             ],
                             "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "window",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1,
+                            "maximum": 365
                         }
                     },
                     {
@@ -7418,6 +7843,18 @@
                         }
                     },
                     {
+                        "name": "window",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1,
+                            "maximum": 365
+                        }
+                    },
+                    {
                         "name": "granularity",
                         "in": "query",
                         "schema": {
@@ -7538,6 +7975,18 @@
                                 "null"
                             ],
                             "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "window",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1,
+                            "maximum": 365
                         }
                     },
                     {
@@ -7662,6 +8111,18 @@
                         }
                     },
                     {
+                        "name": "window",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1,
+                            "maximum": 365
+                        }
+                    },
+                    {
                         "name": "granularity",
                         "in": "query",
                         "schema": {
@@ -7780,6 +8241,18 @@
                                 "null"
                             ],
                             "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "window",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1,
+                            "maximum": 365
                         }
                     },
                     {
@@ -7903,6 +8376,18 @@
                         }
                     },
                     {
+                        "name": "window",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1,
+                            "maximum": 365
+                        }
+                    },
+                    {
                         "name": "granularity",
                         "in": "query",
                         "schema": {
@@ -8020,6 +8505,18 @@
                                 "null"
                             ],
                             "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "window",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1,
+                            "maximum": 365
                         }
                     },
                     {
@@ -8170,6 +8667,18 @@
                         }
                     },
                     {
+                        "name": "window",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1,
+                            "maximum": 365
+                        }
+                    },
+                    {
                         "name": "granularity",
                         "in": "query",
                         "schema": {
@@ -8230,6 +8739,164 @@
                                         "without_messages",
                                         "total"
                                     ]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/chat/first-contact-resolution": {
+            "get": {
+                "operationId": "analytics.chat.first-contact-resolution",
+                "description": "Retorna, por atendente, o total de conversas fechadas com motivo no período, quantas tiveram o cliente retornando com o mesmo motivo dentro da janela de recontato e o percentual de resolução no primeiro contato. Exige `start_period` e `end_period` (máximo de 90 dias).",
+                "summary": "Consultar taxa de resolução no primeiro contato",
+                "tags": [
+                    "Métricas de conversas"
+                ],
+                "parameters": [
+                    {
+                        "name": "start_period",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "end_period",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "is_exclude_bot",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "boolean",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "category_id",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "assistant_id",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "window",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1,
+                            "maximum": 365
+                        }
+                    },
+                    {
+                        "name": "granularity",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "day",
+                                "hour"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "export",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "csv"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "user_id": {
+                                                "type": "string"
+                                            },
+                                            "total": {
+                                                "type": "integer",
+                                                "description": "Conversas fechadas com motivo no período."
+                                            },
+                                            "recontacted": {
+                                                "type": "integer",
+                                                "description": "Conversas com retorno do mesmo motivo dentro da janela."
+                                            },
+                                            "resolution_rate": {
+                                                "type": "number",
+                                                "description": "Percentual de resolução no primeiro contato."
+                                            }
+                                        },
+                                        "required": [
+                                            "user_id",
+                                            "total",
+                                            "recontacted",
+                                            "resolution_rate"
+                                        ]
+                                    }
                                 }
                             }
                         }
@@ -8307,6 +8974,18 @@
                                 "null"
                             ],
                             "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "window",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1,
+                            "maximum": 365
                         }
                     },
                     {
@@ -9258,6 +9937,142 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/telegram": {
+            "get": {
+                "operationId": "telegram.index",
+                "description": "Retorna os bots do Telegram conectados, ordenados por nome, com o link público `t.me` de cada bot.",
+                "summary": "Listar bots do Telegram",
+                "tags": [
+                    "Telegram"
+                ],
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/TelegramBotData"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "operationId": "telegram.store",
+                "description": "Registra um bot do Telegram a partir do token gerado no BotFather, validando o token via `getMe` e configurando o webhook de mensagens.",
+                "summary": "Conectar bot do Telegram",
+                "tags": [
+                    "Telegram"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RegisterTelegramBotRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TelegramBotData"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/telegram/{id}": {
+            "put": {
+                "operationId": "telegram.update",
+                "description": "Atualiza nome, categoria e assistente de IA do bot. Informar `token` rotaciona o token do mesmo bot e reconfigura o webhook.",
+                "summary": "Atualizar bot do Telegram",
+                "tags": [
+                    "Telegram"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateTelegramBotRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TelegramBotData"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "telegram.destroy",
+                "summary": "Remover bot do Telegram",
+                "tags": [
+                    "Telegram"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
@@ -10797,6 +11612,44 @@
                 }
             }
         },
+        "/whatsapp-cloud": {
+            "post": {
+                "operationId": "whatsapp-cloud.store",
+                "description": "Valida as credenciais informadas (WABA, número e token de acesso) na API Cloud da Meta e ativa o canal, inscrevendo o webhook da WABA para receber eventos. Use `is_default` para definir o canal como padrão do tenant, removendo o padrão de outros canais WhatsApp (Official, Baileys ou Cloud).",
+                "summary": "Conectar número WhatsApp Cloud",
+                "tags": [
+                    "WhatsApp Cloud"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SetupWhatsappCloudRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WhatsappCloudData"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/whatsapp-official": {
             "get": {
                 "operationId": "whatsapp-official.index",
@@ -11889,6 +12742,13 @@
                             "boolean",
                             "null"
                         ]
+                    },
+                    "recontacted_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
                     }
                 },
                 "required": [
@@ -11915,7 +12775,8 @@
                     "closed_by_user_id",
                     "is_archived",
                     "deleted_at",
-                    "customer_initiated"
+                    "customer_initiated",
+                    "recontacted_at"
                 ],
                 "title": "Chat"
             },
@@ -12389,7 +13250,9 @@
                             "FACEBOOK_MESSENGER",
                             "INSTAGRAM",
                             "SIMULATION",
-                            "APP"
+                            "APP",
+                            "WEBSITE",
+                            "TELEGRAM"
                         ]
                     },
                     "customer_limit": {
@@ -13969,9 +14832,6 @@
                     "instagram_account_id": {
                         "type": "string"
                     },
-                    "page_id": {
-                        "type": "string"
-                    },
                     "category_id": {
                         "type": "string"
                     },
@@ -14818,6 +15678,93 @@
                 ],
                 "title": "RegisterInstagramRequest"
             },
+            "RegisterTelegramBotRequest": {
+                "type": "object",
+                "properties": {
+                    "token": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "category_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "assistant_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    }
+                },
+                "required": [
+                    "token"
+                ],
+                "title": "RegisterTelegramBotRequest"
+            },
+            "RegisterWebsiteChannelRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "category_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "assistant_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "widget_color": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "welcome_message": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "theme": {
+                        "type": "string",
+                        "enum": [
+                            "light",
+                            "dark"
+                        ]
+                    },
+                    "message_preview": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "name"
+                ],
+                "title": "RegisterWebsiteChannelRequest"
+            },
             "ReminderData": {
                 "type": "object",
                 "properties": {
@@ -15491,6 +16438,83 @@
                 ],
                 "title": "SendVideoMessageRequest"
             },
+            "SendWebsiteChannelMessageRequest": {
+                "type": "object",
+                "properties": {
+                    "external_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "phone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "email": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "email",
+                        "maxLength": 255
+                    },
+                    "text": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "image": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "binary",
+                        "contentMediaType": "application/octet-stream",
+                        "maxLength": 50000
+                    },
+                    "audio": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "binary",
+                        "contentMediaType": "application/octet-stream",
+                        "maxLength": 30000
+                    },
+                    "video": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "binary",
+                        "contentMediaType": "application/octet-stream",
+                        "maxLength": 100000
+                    },
+                    "document": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "binary",
+                        "contentMediaType": "application/octet-stream",
+                        "maxLength": 50000
+                    }
+                },
+                "required": [
+                    "external_id"
+                ],
+                "title": "SendWebsiteChannelMessageRequest"
+            },
             "SentChatToUserRequest": {
                 "type": "object",
                 "properties": {
@@ -15543,6 +16567,33 @@
                     "user_id"
                 ],
                 "title": "SentMultipleChatsToUserRequest"
+            },
+            "SetupWhatsappCloudRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "waba_id": {
+                        "type": "string"
+                    },
+                    "phone_number_id": {
+                        "type": "string"
+                    },
+                    "access_token": {
+                        "type": "string"
+                    },
+                    "is_default": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "name",
+                    "waba_id",
+                    "phone_number_id",
+                    "access_token"
+                ],
+                "title": "SetupWhatsappCloudRequest"
             },
             "Tag": {
                 "type": "object",
@@ -15627,6 +16678,36 @@
                     }
                 },
                 "title": "TagData"
+            },
+            "TelegramBotData": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "tenant_id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "username": {
+                        "type": "string"
+                    },
+                    "bot_id": {
+                        "type": "string"
+                    },
+                    "link": {
+                        "type": "string"
+                    },
+                    "category_id": {
+                        "type": "string"
+                    },
+                    "assistant_id": {
+                        "type": "string"
+                    }
+                },
+                "title": "TelegramBotData"
             },
             "TemplateHeaderResourceData": {
                 "type": "object",
@@ -16504,6 +17585,38 @@
                 },
                 "title": "UpdateTagRequest"
             },
+            "UpdateTelegramBotRequest": {
+                "type": "object",
+                "properties": {
+                    "token": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "category_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "assistant_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    }
+                },
+                "title": "UpdateTelegramBotRequest"
+            },
             "UpdateUserProfileImageRequest": {
                 "type": "object",
                 "properties": {
@@ -16628,6 +17741,58 @@
                     }
                 },
                 "title": "UpdateWebhookRequest"
+            },
+            "UpdateWebsiteChannelRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "category_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "assistant_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "widget_color": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "welcome_message": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "theme": {
+                        "type": "string",
+                        "enum": [
+                            "light",
+                            "dark"
+                        ]
+                    },
+                    "message_preview": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    }
+                },
+                "title": "UpdateWebsiteChannelRequest"
             },
             "UpdateWhatsAppOfficialRequest": {
                 "type": "object",
@@ -16972,6 +18137,39 @@
                 ],
                 "title": "WebhookEventType"
             },
+            "WebsiteChannelData": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "tenant_id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "category_id": {
+                        "type": "string"
+                    },
+                    "assistant_id": {
+                        "type": "string"
+                    },
+                    "widget_color": {
+                        "type": "string"
+                    },
+                    "welcome_message": {
+                        "type": "string"
+                    },
+                    "theme": {
+                        "type": "string"
+                    },
+                    "message_preview": {
+                        "type": "string"
+                    }
+                },
+                "title": "WebsiteChannelData"
+            },
             "WeekDayEnum": {
                 "type": "string",
                 "enum": [
@@ -16984,6 +18182,33 @@
                     "sunday"
                 ],
                 "title": "WeekDayEnum"
+            },
+            "WhatsappCloudData": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "tenant_id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "phone": {
+                        "type": "string"
+                    },
+                    "waba_id": {
+                        "type": "string"
+                    },
+                    "phone_number_id": {
+                        "type": "string"
+                    },
+                    "is_default": {
+                        "type": "boolean"
+                    }
+                },
+                "title": "WhatsappCloudData"
             },
             "WhatsappOfficialData": {
                 "type": "object",
@@ -17020,6 +18245,10 @@
                     }
                 },
                 "title": "WhatsappOfficialData"
+            },
+            "WidgetThemeEnum": {
+                "type": "string",
+                "title": "WidgetThemeEnum"
             }
         },
         "responses": {
@@ -17136,6 +18365,10 @@
             "description": "Canais conectados via API oficial do WhatsApp."
         },
         {
+            "name": "WhatsApp Cloud",
+            "description": "Canais conectados diretamente à API Cloud do WhatsApp (Meta), sem intermediação de BSP."
+        },
+        {
             "name": "Facebook Messenger",
             "description": "Contas do Facebook Messenger conectadas."
         },
@@ -17144,8 +18377,16 @@
             "description": "Contas do Instagram conectadas."
         },
         {
+            "name": "Telegram",
+            "description": "Bots do Telegram conectados."
+        },
+        {
             "name": "Canal In-App",
             "description": "Canal de atendimento dentro do aplicativo do tenant: envio público, socket e histórico."
+        },
+        {
+            "name": "Canal do Site",
+            "description": "Canal de atendimento no site do tenant via widget: config pública, envio público, socket e histórico."
         },
         {
             "name": "Usuários",
@@ -17247,9 +18488,12 @@
             "name": "Canais",
             "tags": [
                 "WhatsApp Official",
+                "WhatsApp Cloud",
                 "Facebook Messenger",
                 "Instagram",
-                "Canal In-App"
+                "Telegram",
+                "Canal In-App",
+                "Canal do Site"
             ]
         },
         {
