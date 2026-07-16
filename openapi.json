@@ -11882,6 +11882,1226 @@
                     }
                 }
             }
+        },
+        "/health": {
+            "get": {
+                "operationId": "crmHealth",
+                "tags": [
+                    "Começando"
+                ],
+                "summary": "Verifica se a API está no ar",
+                "description": "Endpoint público (sem chave). Use para monitoração/uptime.",
+                "security": [],
+                "responses": {
+                    "200": {
+                        "description": "No ar",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "string"
+                                        },
+                                        "version": {
+                                            "type": "string"
+                                        },
+                                        "generated_at": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                        }
+                                    }
+                                },
+                                "example": {
+                                    "status": "ok",
+                                    "version": "v1",
+                                    "generated_at": "2026-07-16T21:30:03.936Z"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "servers": [
+                {
+                    "url": "https://crm.pipeelo.com/api/v1",
+                    "description": "Produção (CRM)"
+                }
+            ]
+        },
+        "/whoami": {
+            "get": {
+                "operationId": "crmWhoami",
+                "tags": [
+                    "Começando"
+                ],
+                "summary": "Mostra o que a sua chave pode fazer",
+                "security": [
+                    {
+                        "crmApiKey": []
+                    }
+                ],
+                "description": "Ecoa o prefixo e os escopos da chave apresentada. Útil para depurar a integração. O identificador da empresa nunca é retornado.",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "key_prefix": {
+                                                    "type": "string"
+                                                },
+                                                "scopes": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "generated_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "example": {
+                                    "data": {
+                                        "key_prefix": "pi_live_a1b2c3d4e5f6",
+                                        "scopes": [
+                                            "leads:read",
+                                            "catalog:read"
+                                        ]
+                                    },
+                                    "meta": {
+                                        "generated_at": "2026-07-16T21:30:03.936Z"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/CrmUnauthorized"
+                    }
+                }
+            },
+            "servers": [
+                {
+                    "url": "https://crm.pipeelo.com/api/v1",
+                    "description": "Produção (CRM)"
+                }
+            ]
+        },
+        "/leads": {
+            "get": {
+                "operationId": "crmListLeads",
+                "tags": [
+                    "Leads"
+                ],
+                "summary": "Lista leads",
+                "security": [
+                    {
+                        "crmApiKey": []
+                    }
+                ],
+                "description": "Lista os leads da empresa, do mais recente para o mais antigo, paginados por cursor. Dados pessoais vêm mascarados. Por padrão exclui estágios de arquivo, LIXEIRA e PRE_LEAD.\n\nEscopo `leads:read`.",
+                "parameters": [
+                    {
+                        "name": "estagio",
+                        "in": "query",
+                        "description": "Filtra por estágio (ex.: LEAD, MQL, FECHADO).",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "status_venda",
+                        "in": "query",
+                        "description": "em_andamento, ganho ou perdido.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "tipo_venda",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "origem",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "responsavel_id",
+                        "in": "query",
+                        "description": "Filtra pelo vendedor responsável.",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "sem_responsavel",
+                        "in": "query",
+                        "description": "true = só leads sem responsável.",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "cidade",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "uf",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "date_field",
+                        "in": "query",
+                        "description": "Sobre qual data filtrar o intervalo.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "created",
+                                "closed"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "date_from",
+                        "in": "query",
+                        "description": "Início (ISO 8601).",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "date_to",
+                        "in": "query",
+                        "description": "Fim (ISO 8601).",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "include_archived",
+                        "in": "query",
+                        "description": "Inclui estágios de arquivo.",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "include_pre_lead",
+                        "in": "query",
+                        "description": "Inclui PRE_LEAD.",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Itens por página (1–100).",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 50
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "description": "Cursor opaco da próxima página (o next_cursor anterior).",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/CrmLead"
+                                            }
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "pagination": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "limit": {
+                                                            "type": "integer"
+                                                        },
+                                                        "has_more": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "next_cursor": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "example": {
+                                    "data": [
+                                        {
+                                            "id": "3f9a1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c",
+                                            "protocolo": "2026-000842",
+                                            "chat_id": null,
+                                            "origem": "Meta Ads",
+                                            "estagio": "MQL",
+                                            "status_venda": "em_andamento",
+                                            "motivo_perda": null,
+                                            "responsavel_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+                                            "plano_interesse_id": null,
+                                            "tags": [
+                                                "fibra",
+                                                "reativação"
+                                            ],
+                                            "tipo_venda": null,
+                                            "estagio_ao_fechar": null,
+                                            "bairro": "Centro",
+                                            "cidade": "Maringá",
+                                            "uf": "PR",
+                                            "data_fechamento": null,
+                                            "criado_em": "2026-07-15T18:22:03.512Z",
+                                            "atualizado_em": "2026-07-16T09:10:44.001Z",
+                                            "entrada_estagio_atual": "2026-07-16T09:10:44.001Z",
+                                            "prazo_retorno": null,
+                                            "valor_estimado": 99.9,
+                                            "valor_mensal": null,
+                                            "valor_mensal_total": null,
+                                            "valor_mensal_anterior": null,
+                                            "desconto_plano": null,
+                                            "acrescimo_plano": null,
+                                            "tipo_imovel": "casa",
+                                            "qtd_dispositivos": 8,
+                                            "ja_cliente": false,
+                                            "operadora_atual": null,
+                                            "anuncio": "fibra-300-julho",
+                                            "campanha_meta_id": "120200000000000000",
+                                            "conjunto_meta_id": null,
+                                            "anuncio_meta_id": null,
+                                            "custo_lead": 7.34,
+                                            "gasto_anuncio": 0,
+                                            "impressoes_anuncio": 1240,
+                                            "cliques_anuncio": 33,
+                                            "ctr_anuncio": 2.66,
+                                            "cpc_anuncio": 0.22,
+                                            "meta_insights_atualizado_em": "2026-07-16T06:00:00.000Z",
+                                            "contato_nome": "Maria Souza",
+                                            "nome_cliente": "Maria Souza",
+                                            "contato_whatsapp": "(44) ****-7766",
+                                            "contato_email": "m***@gmail.com",
+                                            "cpf_cnpj": "***.***.***-01",
+                                            "cpf_cnpj_tipo": "cpf",
+                                            "cep": "87010-***"
+                                        }
+                                    ],
+                                    "meta": {
+                                        "pagination": {
+                                            "limit": 50,
+                                            "has_more": true,
+                                            "next_cursor": "eyJjIjoiMjAyNi0wNy0xNVQxODoyMjowMy41MTJaIiwiaSI6IjNmOWExYjJjLTRkNWUtNmY3YS04YjljLTBkMWUyZjNhNGI1YyJ9"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/CrmValidationError"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/CrmUnauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/CrmForbidden"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/CrmRateLimited"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "crmIngestLead",
+                "tags": [
+                    "Leads"
+                ],
+                "summary": "Cria um lead",
+                "security": [
+                    {
+                        "crmApiKey": []
+                    }
+                ],
+                "description": "Cria um lead externo (site, formulário). `contato_whatsapp` é obrigatório. **Dedupe por telefone:** se já existir lead ativo com o mesmo número, responde `409` com o id do existente e **não** atualiza — trate 409 como sucesso de sincronização. Campo fora da lista permitida → `400`.\n\nEscopo `leads:ingest`.",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "contato_whatsapp"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "contato_whatsapp": {
+                                        "type": "string",
+                                        "description": "Obrigatório. 10 a 13 dígitos (só números; DDI/DDD aceitos)."
+                                    },
+                                    "nome_cliente": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    },
+                                    "contato_email": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    },
+                                    "cpf_cnpj": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    },
+                                    "telefone_adicional": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    },
+                                    "origem": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "description": "Padrão 'API' quando omitido."
+                                    },
+                                    "estagio": {
+                                        "type": "string",
+                                        "enum": [
+                                            "LEAD",
+                                            "MQL",
+                                            "SQL"
+                                        ],
+                                        "default": "LEAD",
+                                        "description": "Estágio de entrada. Apenas LEAD, MQL ou SQL."
+                                    },
+                                    "tags": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "maxItems": 20
+                                    },
+                                    "anuncio": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    },
+                                    "responsavel_id": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "format": "uuid"
+                                    },
+                                    "cep": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    },
+                                    "endereco": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    },
+                                    "numero": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    },
+                                    "bairro": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    },
+                                    "cidade": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    },
+                                    "uf": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    },
+                                    "referencia": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    },
+                                    "tipo_imovel": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    },
+                                    "qtd_dispositivos": {
+                                        "type": [
+                                            "integer",
+                                            "null"
+                                        ]
+                                    },
+                                    "ja_cliente": {
+                                        "type": [
+                                            "boolean",
+                                            "null"
+                                        ]
+                                    },
+                                    "operadora_atual": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    },
+                                    "plano_interesse_id": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "format": "uuid",
+                                        "description": "Id de um plano (/catalog/planos). Precede plano_nome."
+                                    },
+                                    "plano_nome": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "description": "Nome do plano; resolvido para o id do tenant, se existir."
+                                    },
+                                    "valor_mensal": {
+                                        "type": [
+                                            "number",
+                                            "null"
+                                        ]
+                                    }
+                                }
+                            },
+                            "example": {
+                                "contato_whatsapp": "44998887766",
+                                "nome_cliente": "Maria Souza",
+                                "contato_email": "maria@gmail.com",
+                                "origem": "Site",
+                                "estagio": "LEAD",
+                                "tags": [
+                                    "fibra"
+                                ],
+                                "cidade": "Maringá",
+                                "uf": "PR",
+                                "plano_nome": "Fibra 300"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Lead criado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "estagio": {
+                                                    "type": "string"
+                                                },
+                                                "criado_em": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                }
+                                            }
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "request_id": {
+                                                    "type": "string"
+                                                },
+                                                "generated_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "example": {
+                                    "data": {
+                                        "id": "3f9a1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c",
+                                        "estagio": "LEAD",
+                                        "criado_em": "2026-07-16T21:30:03.512Z"
+                                    },
+                                    "meta": {
+                                        "request_id": "d08eeec9-4111-49e0-98f5-2bb68c2a87fd",
+                                        "generated_at": "2026-07-16T21:30:03.936Z"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/CrmValidationError"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/CrmUnauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/CrmForbidden"
+                    },
+                    "409": {
+                        "description": "Já existe lead ativo com este telefone. O id vem em details[0].existing_lead_id.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CrmError"
+                                },
+                                "example": {
+                                    "error": {
+                                        "code": "LEAD_ALREADY_EXISTS",
+                                        "message": "Já existe um lead ativo com este telefone.",
+                                        "request_id": "d08eeec9-4111-49e0-98f5-2bb68c2a87fd",
+                                        "details": [
+                                            {
+                                                "field": "contato_whatsapp",
+                                                "code": "duplicate",
+                                                "existing_lead_id": "3f9a1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c"
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/CrmRateLimited"
+                    }
+                }
+            },
+            "servers": [
+                {
+                    "url": "https://crm.pipeelo.com/api/v1",
+                    "description": "Produção (CRM)"
+                }
+            ]
+        },
+        "/leads/{id}": {
+            "get": {
+                "operationId": "crmGetLead",
+                "tags": [
+                    "Leads"
+                ],
+                "summary": "Detalha um lead",
+                "security": [
+                    {
+                        "crmApiKey": []
+                    }
+                ],
+                "description": "Retorna um lead pelo id, com os mesmos dados mascarados da listagem.\n\nEscopo `leads:read`.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/CrmLead"
+                                        },
+                                        "meta": {
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "example": {
+                                    "data": {
+                                        "id": "3f9a1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c",
+                                        "protocolo": "2026-000842",
+                                        "chat_id": null,
+                                        "origem": "Meta Ads",
+                                        "estagio": "MQL",
+                                        "status_venda": "em_andamento",
+                                        "motivo_perda": null,
+                                        "responsavel_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+                                        "plano_interesse_id": null,
+                                        "tags": [
+                                            "fibra",
+                                            "reativação"
+                                        ],
+                                        "tipo_venda": null,
+                                        "estagio_ao_fechar": null,
+                                        "bairro": "Centro",
+                                        "cidade": "Maringá",
+                                        "uf": "PR",
+                                        "data_fechamento": null,
+                                        "criado_em": "2026-07-15T18:22:03.512Z",
+                                        "atualizado_em": "2026-07-16T09:10:44.001Z",
+                                        "entrada_estagio_atual": "2026-07-16T09:10:44.001Z",
+                                        "prazo_retorno": null,
+                                        "valor_estimado": 99.9,
+                                        "valor_mensal": null,
+                                        "valor_mensal_total": null,
+                                        "valor_mensal_anterior": null,
+                                        "desconto_plano": null,
+                                        "acrescimo_plano": null,
+                                        "tipo_imovel": "casa",
+                                        "qtd_dispositivos": 8,
+                                        "ja_cliente": false,
+                                        "operadora_atual": null,
+                                        "anuncio": "fibra-300-julho",
+                                        "campanha_meta_id": "120200000000000000",
+                                        "conjunto_meta_id": null,
+                                        "anuncio_meta_id": null,
+                                        "custo_lead": 7.34,
+                                        "gasto_anuncio": 0,
+                                        "impressoes_anuncio": 1240,
+                                        "cliques_anuncio": 33,
+                                        "ctr_anuncio": 2.66,
+                                        "cpc_anuncio": 0.22,
+                                        "meta_insights_atualizado_em": "2026-07-16T06:00:00.000Z",
+                                        "contato_nome": "Maria Souza",
+                                        "nome_cliente": "Maria Souza",
+                                        "contato_whatsapp": "(44) ****-7766",
+                                        "contato_email": "m***@gmail.com",
+                                        "cpf_cnpj": "***.***.***-01",
+                                        "cpf_cnpj_tipo": "cpf",
+                                        "cep": "87010-***"
+                                    },
+                                    "meta": {}
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/CrmUnauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/CrmForbidden"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/CrmNotFound"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/CrmRateLimited"
+                    }
+                }
+            },
+            "servers": [
+                {
+                    "url": "https://crm.pipeelo.com/api/v1",
+                    "description": "Produção (CRM)"
+                }
+            ]
+        },
+        "/leads/{id}/activities": {
+            "get": {
+                "operationId": "crmListActivities",
+                "tags": [
+                    "Histórico do lead"
+                ],
+                "summary": "Histórico de um lead",
+                "security": [
+                    {
+                        "crmApiKey": []
+                    }
+                ],
+                "description": "Lista as atividades do lead, da mais recente para a mais antiga, paginadas por cursor. Atividades do tipo `nota` vêm com `descricao: null`.\n\nEscopo `activities:read`.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "tipo",
+                        "in": "query",
+                        "description": "Filtra por tipo de atividade.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Itens por página (1–100).",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 50
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "description": "Cursor opaco da próxima página (o next_cursor anterior).",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/CrmActivity"
+                                            }
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "pagination": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "limit": {
+                                                            "type": "integer"
+                                                        },
+                                                        "has_more": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "next_cursor": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "example": {
+                                    "data": [
+                                        {
+                                            "id": "aa11bb22-cc33-dd44-ee55-ff6600110022",
+                                            "lead_id": "3f9a1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c",
+                                            "tipo": "criacao",
+                                            "descricao": "Lead criado via API",
+                                            "usuario_id": null,
+                                            "usuario_nome": "API",
+                                            "criado_em": "2026-07-15T18:22:03.512Z"
+                                        },
+                                        {
+                                            "id": "bb22cc33-dd44-ee55-ff66-001122334455",
+                                            "lead_id": "3f9a1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c",
+                                            "tipo": "nota",
+                                            "descricao": null,
+                                            "usuario_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+                                            "usuario_nome": "João",
+                                            "criado_em": "2026-07-15T19:00:00.000Z"
+                                        }
+                                    ],
+                                    "meta": {
+                                        "pagination": {
+                                            "limit": 50,
+                                            "has_more": false,
+                                            "next_cursor": null
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/CrmUnauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/CrmForbidden"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/CrmNotFound"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/CrmRateLimited"
+                    }
+                }
+            },
+            "servers": [
+                {
+                    "url": "https://crm.pipeelo.com/api/v1",
+                    "description": "Produção (CRM)"
+                }
+            ]
+        },
+        "/catalog/{resource}": {
+            "get": {
+                "operationId": "crmGetCatalog",
+                "tags": [
+                    "Catálogos"
+                ],
+                "summary": "Planos, vendedores ou etapas",
+                "security": [
+                    {
+                        "crmApiKey": []
+                    }
+                ],
+                "description": "Retorna um catálogo da empresa. As etapas são as customizadas do tenant — as etapas fixas do funil (LEAD, MQL, SQL, SAL, FECHADO…) são constantes de protocolo, não vêm aqui.\n\nEscopo `catalog:read`.",
+                "parameters": [
+                    {
+                        "name": "resource",
+                        "in": "path",
+                        "required": true,
+                        "description": "Qual catálogo.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "planos",
+                                "vendedores",
+                                "estagios"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "oneOf": [
+                                                    {
+                                                        "$ref": "#/components/schemas/CrmPlano"
+                                                    },
+                                                    {
+                                                        "$ref": "#/components/schemas/CrmVendedor"
+                                                    },
+                                                    {
+                                                        "$ref": "#/components/schemas/CrmEtapa"
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "has_more": {
+                                                    "type": "boolean"
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "example": {
+                                    "data": [
+                                        {
+                                            "id": "p1a2b3c4-d5e6-7a8b-9c0d-1e2f3a4b5c6d",
+                                            "nome": "Fibra 300",
+                                            "velocidade_download": 300,
+                                            "velocidade_upload": 150,
+                                            "valor_mensal": 99.9,
+                                            "tecnologia": "fibra",
+                                            "descricao": "Plano residencial",
+                                            "ativo": true,
+                                            "categoria": "internet",
+                                            "criado_em": "2026-01-01T00:00:00.000Z",
+                                            "atualizado_em": "2026-02-01T00:00:00.000Z"
+                                        }
+                                    ],
+                                    "meta": {
+                                        "has_more": false
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/CrmUnauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/CrmForbidden"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/CrmNotFound"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/CrmRateLimited"
+                    }
+                }
+            },
+            "servers": [
+                {
+                    "url": "https://crm.pipeelo.com/api/v1",
+                    "description": "Produção (CRM)"
+                }
+            ]
+        },
+        "/metrics/history": {
+            "get": {
+                "operationId": "crmMetricsHistory",
+                "tags": [
+                    "Métricas de vendas"
+                ],
+                "summary": "Série mensal de métricas",
+                "security": [
+                    {
+                        "crmApiKey": []
+                    }
+                ],
+                "description": "Snapshots mensais pré-agregados (MRR, contratos, conversão, investimento em ads, ROAS…), do mês mais recente para o mais antigo.\n\nEscopo `metrics:read`.",
+                "parameters": [
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "Mês inicial (YYYY-MM).",
+                        "schema": {
+                            "type": "string",
+                            "pattern": "^\\d{4}-\\d{2}$"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "Mês final (YYYY-MM).",
+                        "schema": {
+                            "type": "string",
+                            "pattern": "^\\d{4}-\\d{2}$"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/CrmSnapshot"
+                                            }
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "timezone": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "example": {
+                                    "data": [
+                                        {
+                                            "id": "s1a2b3c4-d5e6-7a8b-9c0d-1e2f3a4b5c6d",
+                                            "mes": "2026-07-01",
+                                            "meta_mrr": 50000,
+                                            "mrr_realizado": 42800,
+                                            "receita_anualizada": 513600,
+                                            "contratos_ganhos": 37,
+                                            "contratos_perdidos": 12,
+                                            "total_leads_novos": 410,
+                                            "taxa_conversao": 0.09,
+                                            "ticket_medio": 118.4,
+                                            "investimento_ads": 8200,
+                                            "cpl_medio": 20,
+                                            "roas": 5.2,
+                                            "criado_em": "2026-08-01T03:00:00.000Z"
+                                        }
+                                    ],
+                                    "meta": {
+                                        "timezone": "America/Sao_Paulo"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/CrmValidationError"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/CrmUnauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/CrmForbidden"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/CrmRateLimited"
+                    }
+                }
+            },
+            "servers": [
+                {
+                    "url": "https://crm.pipeelo.com/api/v1",
+                    "description": "Produção (CRM)"
+                }
+            ]
+        },
+        "/metrics/stages": {
+            "get": {
+                "operationId": "crmMetricsStages",
+                "tags": [
+                    "Métricas de vendas"
+                ],
+                "summary": "Contagem e valor por estágio",
+                "security": [
+                    {
+                        "crmApiKey": []
+                    }
+                ],
+                "description": "Para cada estágio do funil, a contagem de leads e a soma do valor estimado — o mesmo resumo dos badges do Kanban.\n\nEscopo `metrics:read`.",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/CrmStageMetric"
+                                            }
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "timezone": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "example": {
+                                    "data": [
+                                        {
+                                            "estagio": "LEAD",
+                                            "total_count": 128,
+                                            "valor_total": 0
+                                        },
+                                        {
+                                            "estagio": "MQL",
+                                            "total_count": 54,
+                                            "valor_total": 5390.1
+                                        },
+                                        {
+                                            "estagio": "FECHADO",
+                                            "total_count": 37,
+                                            "valor_total": 4381.3
+                                        }
+                                    ],
+                                    "meta": {
+                                        "timezone": "America/Sao_Paulo"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/CrmUnauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/CrmForbidden"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/CrmRateLimited"
+                    }
+                }
+            },
+            "servers": [
+                {
+                    "url": "https://crm.pipeelo.com/api/v1",
+                    "description": "Produção (CRM)"
+                }
+            ]
         }
     },
     "components": {
@@ -11889,6 +13109,11 @@
             "http": {
                 "type": "http",
                 "scheme": "bearer"
+            },
+            "crmApiKey": {
+                "type": "http",
+                "scheme": "bearer",
+                "description": "Chave da API do CRM (pi_live_…). Crie em Configurações → Chaves de API."
             }
         },
         "schemas": {
@@ -18249,6 +19474,692 @@
             "WidgetThemeEnum": {
                 "type": "string",
                 "title": "WidgetThemeEnum"
+            },
+            "CrmLead": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "protocolo": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "chat_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "UUID da conversa na Pipeelo, quando o lead veio de um canal de atendimento."
+                    },
+                    "origem": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "estagio": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Etapa do funil: LEAD, MQL, SQL, SAL, AGUARDANDO_INSTALACAO, FECHADO, FECHADO_UPGRADE, PERDIDO, LIXEIRA."
+                    },
+                    "status_venda": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "em_andamento, ganho ou perdido."
+                    },
+                    "motivo_perda": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "responsavel_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid",
+                        "description": "Vendedor responsável (id em /catalog/vendedores)."
+                    },
+                    "plano_interesse_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "tags": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "tipo_venda": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "venda_nova, upgrade ou operacional."
+                    },
+                    "estagio_ao_fechar": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "bairro": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "cidade": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "uf": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "data_fechamento": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "criado_em": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time",
+                        "description": "Data de criação. Chave de ordenação da paginação."
+                    },
+                    "atualizado_em": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "entrada_estagio_atual": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "prazo_retorno": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "valor_estimado": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "valor_mensal": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "valor_mensal_total": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "valor_mensal_anterior": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "desconto_plano": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "acrescimo_plano": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "tipo_imovel": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "qtd_dispositivos": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "ja_cliente": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "operadora_atual": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "anuncio": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "campanha_meta_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "conjunto_meta_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "anuncio_meta_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "custo_lead": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "gasto_anuncio": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "impressoes_anuncio": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "cliques_anuncio": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "ctr_anuncio": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "cpc_anuncio": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "meta_insights_atualizado_em": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "contato_nome": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Nome do contato. Sequências longas de dígitos (telefone escondido no nome) são removidas."
+                    },
+                    "nome_cliente": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Nome do cliente, com a mesma limpeza de contato_nome."
+                    },
+                    "contato_whatsapp": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Telefone MASCARADO, ex.: (44) ****-7766."
+                    },
+                    "contato_email": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "E-mail MASCARADO, ex.: f***@gmail.com."
+                    },
+                    "cpf_cnpj": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "CPF/CNPJ MASCARADO (só os 2 dígitos verificadores), ex.: ***.***.***-01."
+                    },
+                    "cpf_cnpj_tipo": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "cpf",
+                            "cnpj",
+                            null
+                        ],
+                        "description": "Tipo do documento mascarado."
+                    },
+                    "cep": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "CEP MASCARADO, ex.: 12345-***."
+                    }
+                },
+                "example": {
+                    "id": "3f9a1b2c-4d5e-6f7a-8b9c-0d1e2f3a4b5c",
+                    "protocolo": "2026-000842",
+                    "chat_id": null,
+                    "origem": "Meta Ads",
+                    "estagio": "MQL",
+                    "status_venda": "em_andamento",
+                    "motivo_perda": null,
+                    "responsavel_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+                    "plano_interesse_id": null,
+                    "tags": [
+                        "fibra",
+                        "reativação"
+                    ],
+                    "tipo_venda": null,
+                    "estagio_ao_fechar": null,
+                    "bairro": "Centro",
+                    "cidade": "Maringá",
+                    "uf": "PR",
+                    "data_fechamento": null,
+                    "criado_em": "2026-07-15T18:22:03.512Z",
+                    "atualizado_em": "2026-07-16T09:10:44.001Z",
+                    "entrada_estagio_atual": "2026-07-16T09:10:44.001Z",
+                    "prazo_retorno": null,
+                    "valor_estimado": 99.9,
+                    "valor_mensal": null,
+                    "valor_mensal_total": null,
+                    "valor_mensal_anterior": null,
+                    "desconto_plano": null,
+                    "acrescimo_plano": null,
+                    "tipo_imovel": "casa",
+                    "qtd_dispositivos": 8,
+                    "ja_cliente": false,
+                    "operadora_atual": null,
+                    "anuncio": "fibra-300-julho",
+                    "campanha_meta_id": "120200000000000000",
+                    "conjunto_meta_id": null,
+                    "anuncio_meta_id": null,
+                    "custo_lead": 7.34,
+                    "gasto_anuncio": 0,
+                    "impressoes_anuncio": 1240,
+                    "cliques_anuncio": 33,
+                    "ctr_anuncio": 2.66,
+                    "cpc_anuncio": 0.22,
+                    "meta_insights_atualizado_em": "2026-07-16T06:00:00.000Z",
+                    "contato_nome": "Maria Souza",
+                    "nome_cliente": "Maria Souza",
+                    "contato_whatsapp": "(44) ****-7766",
+                    "contato_email": "m***@gmail.com",
+                    "cpf_cnpj": "***.***.***-01",
+                    "cpf_cnpj_tipo": "cpf",
+                    "cep": "87010-***"
+                }
+            },
+            "CrmActivity": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "lead_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "tipo": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "criacao, mudanca_estagio, mensagem, nota, etc."
+                    },
+                    "descricao": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Texto da atividade. SEMPRE null quando tipo = 'nota'."
+                    },
+                    "usuario_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "usuario_nome": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "criado_em": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time",
+                        "description": "Chave de ordenação da paginação."
+                    }
+                }
+            },
+            "CrmPlano": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "nome": {
+                        "type": "string"
+                    },
+                    "velocidade_download": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "velocidade_upload": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "valor_mensal": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "tecnologia": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "descricao": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "ativo": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "categoria": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "criado_em": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "atualizado_em": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    }
+                }
+            },
+            "CrmVendedor": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "nome": {
+                        "type": "string"
+                    }
+                }
+            },
+            "CrmEtapa": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "nome": {
+                        "type": "string"
+                    },
+                    "descricao": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "cor": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "icone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "posicao": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "ativo": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "criado_em": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "atualizado_em": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    }
+                }
+            },
+            "CrmSnapshot": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "mes": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Primeiro dia do mês (YYYY-MM-01)."
+                    },
+                    "meta_mrr": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "mrr_realizado": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "receita_anualizada": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "contratos_ganhos": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "contratos_perdidos": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "total_leads_novos": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "taxa_conversao": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "ticket_medio": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "investimento_ads": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "cpl_medio": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "roas": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "criado_em": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    }
+                }
+            },
+            "CrmStageMetric": {
+                "type": "object",
+                "properties": {
+                    "estagio": {
+                        "type": "string"
+                    },
+                    "total_count": {
+                        "type": "integer",
+                        "description": "Quantidade de leads no estágio."
+                    },
+                    "valor_total": {
+                        "type": "number",
+                        "description": "Soma do valor estimado dos leads do estágio (0 quando não há)."
+                    }
+                }
+            },
+            "CrmError": {
+                "type": "object",
+                "properties": {
+                    "error": {
+                        "type": "object",
+                        "properties": {
+                            "code": {
+                                "type": "string"
+                            },
+                            "message": {
+                                "type": "string"
+                            },
+                            "request_id": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "details": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         "responses": {
@@ -18297,6 +20208,120 @@
                             "required": [
                                 "message"
                             ]
+                        }
+                    }
+                }
+            },
+            "CrmUnauthorized": {
+                "description": "Chave ausente, inválida, expirada ou revogada.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/CrmError"
+                        },
+                        "example": {
+                            "error": {
+                                "code": "MISSING_API_KEY",
+                                "message": "Header Authorization: Bearer <chave> ausente.",
+                                "request_id": "d08eeec9-4111-49e0-98f5-2bb68c2a87fd"
+                            }
+                        }
+                    }
+                }
+            },
+            "CrmForbidden": {
+                "description": "A chave não tem o escopo exigido pelo endpoint.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/CrmError"
+                        },
+                        "example": {
+                            "error": {
+                                "code": "INSUFFICIENT_SCOPE",
+                                "message": "A chave não tem o escopo necessário: leads:read.",
+                                "request_id": "d08eeec9-4111-49e0-98f5-2bb68c2a87fd"
+                            }
+                        }
+                    }
+                }
+            },
+            "CrmNotFound": {
+                "description": "Recurso inexistente ou de outra empresa (indistinguíveis de propósito).",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/CrmError"
+                        },
+                        "example": {
+                            "error": {
+                                "code": "NOT_FOUND",
+                                "message": "Lead não encontrado.",
+                                "request_id": "d08eeec9-4111-49e0-98f5-2bb68c2a87fd"
+                            }
+                        }
+                    }
+                }
+            },
+            "CrmValidationError": {
+                "description": "Parâmetro, corpo ou cursor inválido.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/CrmError"
+                        },
+                        "example": {
+                            "error": {
+                                "code": "VALIDATION_ERROR",
+                                "message": "contato_whatsapp é obrigatório e deve ter de 10 a 13 dígitos.",
+                                "request_id": "d08eeec9-4111-49e0-98f5-2bb68c2a87fd",
+                                "details": [
+                                    {
+                                        "field": "contato_whatsapp",
+                                        "code": "invalid"
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            },
+            "CrmRateLimited": {
+                "description": "Limite de requisições excedido. Respeite o Retry-After.",
+                "headers": {
+                    "Retry-After": {
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Segundos até poder tentar de novo."
+                    },
+                    "X-RateLimit-Limit": {
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    "X-RateLimit-Remaining": {
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    "X-RateLimit-Reset": {
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/CrmError"
+                        },
+                        "example": {
+                            "error": {
+                                "code": "RATE_LIMITED",
+                                "message": "Limite de requisições excedido.",
+                                "request_id": "d08eeec9-4111-49e0-98f5-2bb68c2a87fd"
+                            }
                         }
                     }
                 }
@@ -18447,6 +20472,26 @@
         {
             "name": "Arquivos",
             "description": "Download de arquivos armazenados."
+        },
+        {
+            "name": "Começando",
+            "description": "## API do CRM\n\nA **API Pública do Pipeelo CRM** dá ao seu sistema acesso programático aos dados do seu CRM de vendas: liste leads e o histórico de cada um, consulte catálogos (planos, vendedores, etapas) e métricas, e **crie leads** vindos do seu site ou formulário. Cada empresa usa a própria chave e enxerga **somente os próprios dados**.\n\n> Esta API é separada da API da plataforma de atendimento. Ela vive em outro domínio e usa chaves próprias.\n\n### Base URL\n\n| Ambiente | URL |\n|---|---|\n| Produção | `https://crm.pipeelo.com/api/v1` |\n\n### Autenticação\n\nChaves Bearer no formato `pi_live_…`. Para criar uma:\n\n1. No painel do CRM, entre em **Configurações → Chaves de API** (administradores).\n2. **Nova chave** → nome → marque só as permissões necessárias → expiração.\n3. **Copie na hora** — a chave aparece uma única vez e não pode ser recuperada. Guarde como senha.\n\n```\nAuthorization: Bearer pi_live_a1b2c3d4e5f6_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n```\n\nSó `GET /health` é público.\n\n### Permissões (escopos)\n\n| Escopo | Permite |\n|---|---|\n| `leads:read` | Listar leads e ver o detalhe de cada um |\n| `leads:ingest` | Criar leads (não permite ler nem editar) |\n| `activities:read` | Ver o histórico de atividades de um lead |\n| `catalog:read` | Ver planos, vendedores e etapas |\n| `metrics:read` | Ver métricas (inclui custo por lead, gasto com anúncios e ROAS) |\n\nEndpoint sem o escopo exigido → `403 INSUFFICIENT_SCOPE`.\n\n### Isolamento por empresa\n\nA chave está amarrada a uma empresa e **toda** resposta é filtrada por ela no banco. Não há parâmetro de tenant, e uma chave não alcança dados de outra empresa: um recurso de outra empresa responde `404`, indistinguível de inexistente.\n\n### Privacidade\n\nA leitura de leads **sempre mascara dados pessoais** — telefone, e-mail, CPF/CNPJ e CEP vêm parcialmente ocultos (ex.: `(44) ****-7766`, `f***@gmail.com`, `***.***.***-01`). Notas internas (`tipo: nota`) vêm com `descricao: null`.\n\n### Envelope e paginação\n\nSucesso segue `{ \"data\": …, \"meta\": … }`. Listas são paginadas por **cursor**: repita a chamada enviando `next_cursor` (de `meta.pagination`) no parâmetro `cursor`; acabou quando `has_more` for `false`. O cursor é opaco.\n\n### Erros\n\nCódigos HTTP + corpo `{ \"error\": { \"code\", \"message\", \"request_id\" } }`. O `code` é contrato estável.\n\n| Status | `code` | Quando |\n|---|---|---|\n| `400` | `VALIDATION_ERROR`, `INVALID_JSON`, `INVALID_CURSOR` | Parâmetro, corpo ou cursor inválido |\n| `401` | `MISSING_API_KEY`, `INVALID_API_KEY`, `EXPIRED_API_KEY`, `REVOKED_API_KEY` | Chave ausente / inválida / expirada / revogada |\n| `403` | `INSUFFICIENT_SCOPE` | Chave sem o escopo do endpoint |\n| `404` | `NOT_FOUND` | Recurso inexistente ou de outra empresa |\n| `409` | `LEAD_ALREADY_EXISTS` | Já existe lead ativo com o mesmo telefone |\n| `429` | `RATE_LIMITED` | Limite de requisições excedido |\n\n**Retry:** `4xx` nunca re-tentar; `429` só após o `Retry-After`; `5xx` com backoff exponencial e teto.\n\n### Limites\n\n60 requisições/min por chave e 300/min por empresa. Toda resposta traz `X-RateLimit-Limit/Remaining/Reset`; ao estourar, `429` com `Retry-After`.\n"
+        },
+        {
+            "name": "Leads",
+            "description": "Listar, detalhar e criar leads do CRM."
+        },
+        {
+            "name": "Histórico do lead",
+            "description": "Atividades de um lead."
+        },
+        {
+            "name": "Catálogos",
+            "description": "Planos, vendedores e etapas da empresa."
+        },
+        {
+            "name": "Métricas de vendas",
+            "description": "Séries mensais e resumo por estágio do funil."
         }
     ],
     "x-tagGroups": [
@@ -18534,6 +20579,16 @@
             "name": "Utilitários",
             "tags": [
                 "Arquivos"
+            ]
+        },
+        {
+            "name": "API do CRM (crm.pipeelo.com)",
+            "tags": [
+                "Começando",
+                "Leads",
+                "Histórico do lead",
+                "Catálogos",
+                "Métricas de vendas"
             ]
         }
     ]
