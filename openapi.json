@@ -935,7 +935,7 @@
         "/app-channel/message/{identifier}": {
             "post": {
                 "operationId": "appChannelMessage.store",
-                "description": "Endpoint público, sem token. O `{identifier}` é o id do canal in-app registrado em `POST /app-channel`.\n\n**Identificação:** o usuário é identificado pelo `external_id` — o id que ele já tem no seu sistema (use um valor opaco, como uuid, nunca sequencial). No primeiro contato o cliente é criado automaticamente, com `name`, `phone` e `email` opcionais entrando no cadastro; nas mensagens seguintes, o mesmo `external_id` é a mesma pessoa e esses campos são ignorados.\n\n**Conteúdo:** exatamente um por requisição — `text` (em `application/json` ou multipart) ou um arquivo em `multipart/form-data`: `image` (JPEG/PNG, até 50 MB), `audio` (AAC, MP3, MP4, OGG, WAV, WebM e outros, até 30 MB), `video` (MP4/3GP, até 100 MB) ou `document` (PDF, Word, Excel, PowerPoint, CSV, TXT, ZIP e outros, até 50 MB).\n\n**Respostas em tempo real:** a conversa segue o fluxo normal de atendimento (IA e atendentes). As respostas chegam no evento `app-channel.message` do canal público de websocket `app-channel.{identifier}.{external_id}` (protocolo Pusher, host `soketi.pipeelo.com`) e no webhook do canal, quando configurado — sempre no mesmo formato de mensagem do histórico. O socket entrega os dois lados da conversa, incluindo o eco desta mensagem; mensagens perdidas com o app fechado não são reenviadas pelo socket — recarregue o histórico ao reabrir.\n\n**Observações:** não há deduplicação de reenvio no servidor — em caso de timeout, deduplique pelo `message_id` retornado. Cliente bloqueado recebe `200` com corpo vazio. Identificador inexistente retorna `404`. Limite: 30 requisições/minuto por usuário (`identifier` + `external_id`) e 120/minuto por IP — acima disso, `429`.",
+                "description": "Endpoint público, sem token. O `{identifier}` é o id do canal in-app registrado em `POST /app-channel`.\n\n**Identificação:** o usuário é identificado pelo `external_id` — o id que ele já tem no seu sistema (use um valor opaco, como uuid, nunca sequencial). No primeiro contato o cliente é criado automaticamente; nas mensagens seguintes, o mesmo `external_id` é a mesma pessoa. O bloco `user` opcional declara os dados do cliente quando o app os conhece — `user[name]`, `user[email]`, `user[phone]` e `user[document]`, todos opcionais (JSON ou multipart): no primeiro contato entram no cadastro; nas seguintes preenchem apenas campos ainda vazios (o nome criado sem `user[name]` conta como vazio) e nunca sobrescrevem dados já preenchidos. Campo inválido no bloco é descartado em silêncio — a mensagem nunca é rejeitada por causa dele.\n\n**Conteúdo:** exatamente um por requisição — `text` (em `application/json` ou multipart) ou um arquivo em `multipart/form-data`: `image` (JPEG/PNG, até 50 MB), `audio` (AAC, MP3, MP4, OGG, WAV, WebM e outros, até 30 MB), `video` (MP4/3GP, até 100 MB) ou `document` (PDF, Word, Excel, PowerPoint, CSV, TXT, ZIP e outros, até 50 MB). Junto com `text`, aceita `selected_value` opcional (máx. 64 caracteres) — o `value` do item escolhido quando o usuário responde a uma mensagem interativa (`items` no payload do socket/histórico). Ao receber a resposta, a mensagem interativa mais recente da conversa passa a expor o mesmo `selected_value` no histórico — use para desabilitar opções já respondidas.\n\n**Respostas em tempo real:** a conversa segue o fluxo normal de atendimento (IA e atendentes). As respostas chegam no evento `app-channel.message` do canal público de websocket `app-channel.{identifier}.{external_id}` (protocolo Pusher, host `soketi.pipeelo.com`) e no webhook do canal, quando configurado — sempre no mesmo formato de mensagem do histórico. O socket entrega os dois lados da conversa, incluindo o eco desta mensagem; mensagens perdidas com o app fechado não são reenviadas pelo socket — recarregue o histórico ao reabrir.\n\n**Observações:** não há deduplicação de reenvio no servidor — em caso de timeout, deduplique pelo `message_id` retornado. Cliente bloqueado recebe `200` com corpo vazio. Identificador inexistente retorna `404`. Limite: 30 requisições/minuto por usuário (`identifier` + `external_id`) e 120/minuto por IP — acima disso, `429`.",
                 "summary": "Enviar mensagem pelo app (público)",
                 "tags": [
                     "Canal In-App"
@@ -1273,7 +1273,7 @@
         "/website-channel/message/{identifier}": {
             "post": {
                 "operationId": "websiteChannelMessage.store",
-                "description": "Endpoint público, sem token. O `{identifier}` é o id do canal do site registrado em `POST /website-channel`.\n\n**Identificação:** o visitante é identificado pelo `external_id` — o token de sessão uuid v4 cunhado pelo widget no primeiro uso e guardado no navegador. O formato uuid é obrigatório (`422` caso contrário): o token é a proteção prática do socket e do histórico, então nunca use um dado do usuário (email, id no site) como token. No primeiro contato o visitante é criado automaticamente com o nome \"Visitante\" + os últimos 6 caracteres do token; `name`, `phone` e `email` opcionais entram no cadastro nesse momento (ex.: formulário de pré-chat) e são ignorados nas mensagens seguintes.\n\n**Conteúdo:** exatamente um por requisição — `text` (em `application/json` ou multipart) ou um arquivo em `multipart/form-data`: `image` (JPEG/PNG, até 50 MB), `audio` (AAC, MP3, MP4, OGG, WAV, WebM e outros, até 30 MB), `video` (MP4/3GP, até 100 MB) ou `document` (PDF, Word, Excel, PowerPoint, CSV, TXT, ZIP e outros, até 50 MB).\n\n**Respostas em tempo real:** a conversa segue o fluxo normal de atendimento (IA e atendentes). As respostas chegam no evento `website-channel.message` do canal público de websocket `website-channel.{identifier}.{external_id}` (protocolo Pusher, host `soketi.pipeelo.com`), sempre no mesmo formato de mensagem do histórico. O socket entrega os dois lados da conversa, incluindo o eco desta mensagem; mensagens perdidas com a página fechada não são reenviadas pelo socket — recarregue o histórico ao reabrir.\n\n**Observações:** não há deduplicação de reenvio no servidor — em caso de timeout, deduplique pelo `message_id` retornado. Visitante bloqueado recebe `200` com corpo vazio. Identificador inexistente retorna `404`. Limite: 30 requisições/minuto por visitante (`identifier` + `external_id`) e 120/minuto por IP — acima disso, `429`.",
+                "description": "Endpoint público, sem token. O `{identifier}` é o id do canal do site registrado em `POST /website-channel`.\n\n**Identificação:** o visitante é identificado pelo `external_id` — o token de sessão uuid v4 cunhado pelo widget no primeiro uso e guardado no navegador. O formato uuid é obrigatório (`422` caso contrário): o token é a proteção prática do socket e do histórico, então nunca use um dado do usuário (email, id no site) como token. No primeiro contato o visitante é criado automaticamente com o nome \"Visitante\" + os últimos 6 caracteres do token. O bloco `user` opcional declara os dados do cliente quando o site os conhece (ex.: área logada, via `Pipeelo(\"setUser\", …)` no snippet) — `user[name]`, `user[email]`, `user[phone]` e `user[document]`, todos opcionais (JSON ou multipart): no primeiro contato entram no cadastro; nas mensagens seguintes preenchem apenas campos ainda vazios (o nome \"Visitante…\" conta como vazio) e nunca sobrescrevem dados já preenchidos. Campo inválido no bloco é descartado em silêncio — a mensagem nunca é rejeitada por causa dele.\n\n**Conteúdo:** exatamente um por requisição — `text` (em `application/json` ou multipart) ou um arquivo em `multipart/form-data`: `image` (JPEG/PNG, até 50 MB), `audio` (AAC, MP3, MP4, OGG, WAV, WebM e outros, até 30 MB), `video` (MP4/3GP, até 100 MB) ou `document` (PDF, Word, Excel, PowerPoint, CSV, TXT, ZIP e outros, até 50 MB). Junto com `text`, aceita `selected_value` opcional (máx. 64 caracteres) — o `value` do item escolhido quando o visitante responde a uma mensagem interativa (`items` no payload do socket/histórico). Ao receber a resposta, a mensagem interativa mais recente da conversa passa a expor o mesmo `selected_value` no histórico — use para desabilitar opções já respondidas.\n\n**Atendimento:** a mensagem entra no atendimento aberto do visitante neste canal; se não houver nenhum aberto, um novo é criado e segue o fluxo normal de fila. O visitante nunca tem mais de um atendimento aberto por canal. O `chat_id` devolvido no `201` diz em qual atendimento a mensagem caiu — compare com o atendimento que estava em tela para saber que um novo começou.\n\n**Respostas em tempo real:** a conversa segue o fluxo normal de atendimento (IA e atendentes). As respostas chegam no evento `website-channel.message` do canal público de websocket `website-channel.{identifier}.{external_id}` (protocolo Pusher, host `soketi.pipeelo.com`), sempre no mesmo formato de mensagem do histórico. O socket entrega os dois lados da conversa, incluindo o eco desta mensagem; mensagens perdidas com a página fechada não são reenviadas pelo socket — recarregue o histórico ao reabrir.\n\n**Encerramento em tempo real:** o mesmo canal entrega o evento `website-channel.chat-closed` com `chat_id` e `ended_at` quando o atendimento é encerrado por um atendente, pela IA, por uma automação ou por inatividade. A partir daí ele vira só histórico: a próxima mensagem do visitante abre um atendimento novo. O evento é uma otimização de tempo real, não uma garantia de entrega — nem todo encerramento automático o emite, e o socket não reenvia o que passou com a página fechada. Quem manda no estado é `GET /website-channel/conversations/{identifier}`: releia ao abrir a página e ao reconectar o websocket.\n\n**Observações:** não há deduplicação de reenvio no servidor — em caso de timeout, deduplique pelo `message_id` retornado. Visitante bloqueado recebe `200` com corpo vazio. Identificador inexistente retorna `404`. Limite: 30 requisições/minuto por visitante (`identifier` + `external_id`) e 120/minuto por IP — acima disso, `429`.",
                 "summary": "Enviar mensagem pelo widget (público)",
                 "tags": [
                     "Canal do Site"
@@ -1333,7 +1333,7 @@
         "/website-channel/history/{identifier}": {
             "get": {
                 "operationId": "websiteChannelMessage.history",
-                "description": "Endpoint público, sem token: retorna a linha do tempo de mensagens do visitante no canal, da mais recente para a mais antiga, paginada por cursor. Use ao abrir a página e ao reconectar o websocket (o socket não reenvia mensagens perdidas) — o histórico é a fonte de verdade da conversa.\n\nA linha do tempo é contínua e cruza todos os atendimentos do visitante — para o widget não existe conversa aberta ou encerrada. Cada item tem o mesmo formato do evento de socket: `message_id`, `chat_id`, `external_id`, `type` (`text`, `image`, `audio`, `video` ou `document`), `text`, `media_url` (link temporário válido por 1 hora — se expirar, recarregue o histórico para gerar um novo), `from` (`customer` = visitante; `company` = IA ou atendente) e `created_at`.\n\n`external_id` desconhecido retorna a página vazia. Para a próxima página, envie o valor de `next_cursor` no parâmetro `cursor`. Mesmo limite de requisições do endpoint de envio.",
+                "description": "Endpoint público, sem token: retorna a linha do tempo de mensagens do visitante no canal, da mais recente para a mais antiga, paginada por cursor. Use ao abrir a página e ao reconectar o websocket (o socket não reenvia mensagens perdidas) — o histórico é a fonte de verdade da conversa.\n\nSem `chat_id`, a linha do tempo é contínua e cruza todos os atendimentos do visitante. Com `chat_id`, devolve só as mensagens daquele atendimento — use assim para montar uma conversa por atendimento, junto de `GET /website-channel/conversations/{identifier}`. Um `chat_id` que não pertença ao visitante retorna a página vazia.\n\nCada item tem o mesmo formato do evento de socket: `message_id`, `chat_id`, `external_id`, `type` (`text`, `image`, `audio`, `video` ou `document`), `text`, `media_url` (link temporário válido por 1 hora — se expirar, recarregue o histórico para gerar um novo), `from` (`customer` = visitante; `company` = IA ou atendente) e `created_at`.\n\n`external_id` desconhecido retorna a página vazia. Para a próxima página, envie o valor de `next_cursor` no parâmetro `cursor`. Mesmo limite de requisições do endpoint de envio.",
                 "summary": "Histórico da conversa do visitante (público)",
                 "tags": [
                     "Canal do Site"
@@ -1353,6 +1353,17 @@
                         "required": true,
                         "schema": {
                             "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "chat_id",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
                             "format": "uuid"
                         }
                     },
@@ -1471,10 +1482,164 @@
                 "security": []
             }
         },
+        "/website-channel/conversations/{identifier}": {
+            "get": {
+                "operationId": "websiteChannelMessage.conversations",
+                "description": "Endpoint público, sem token: lista os atendimentos do visitante no canal, do mais recente para o mais antigo, paginado por cursor. Use para montar a lista de conversas do widget e para saber o estado atual antes de habilitar o envio.\n\n`ended_at` nulo = atendimento em andamento. O visitante tem no máximo um aberto por canal, e ele é sempre o primeiro item — os demais são só histórico. Para as mensagens de um atendimento, chame `GET /website-channel/history/{identifier}` com o `chat_id` desta lista.\n\nCada item traz `chat_id`, `protocol` (número de protocolo do atendimento), `started_at`, `ended_at` e um resumo da última mensagem: `last_message_text`, `last_message_type`, `last_message_from` (`customer` = visitante; `company` = IA ou atendente) e `last_message_created_at`. Quando a última mensagem foi apagada ou é interna (uso da IA), `last_message_text` e `last_message_type` vêm `null` — o atendimento continua na lista.\n\n`external_id` desconhecido retorna a página vazia. Para a próxima página, envie o valor de `next_cursor` no parâmetro `cursor`. Mesmo limite de requisições do endpoint de envio.",
+                "summary": "Atendimentos do visitante (público)",
+                "tags": [
+                    "Canal do Site"
+                ],
+                "parameters": [
+                    {
+                        "name": "identifier",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "external_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1,
+                            "maximum": 50
+                        }
+                    }
+                ],
+                "responses": {
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "chat_id": {
+                                                        "type": "string",
+                                                        "format": "uuid"
+                                                    },
+                                                    "protocol": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "started_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ],
+                                                        "format": "date-time"
+                                                    },
+                                                    "ended_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ],
+                                                        "format": "date-time"
+                                                    },
+                                                    "last_message_text": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "last_message_type": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "last_message_from": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "customer",
+                                                            "company"
+                                                        ]
+                                                    },
+                                                    "last_message_created_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ],
+                                                        "format": "date-time"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "per_page": {
+                                            "type": "integer"
+                                        },
+                                        "next_cursor": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "next_page_url": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "prev_cursor": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "prev_page_url": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
         "/website-channel/config/{identifier}": {
             "get": {
                 "operationId": "websiteChannelMessage.config",
-                "description": "Endpoint público, sem token: devolve a configuração do widget para o boot — `name`, `widget_color`, `welcome_message`, `theme` (`light` ou `dark`) e `message_preview` (quando preenchida, o widget a exibe como teaser junto à bolha antes de abrir; `null` = sem teaser). O `{identifier}` é o id do canal registrado em `POST /website-channel`.\n\nA resposta é cacheável (`Cache-Control` público de 5 minutos) — mudanças de configuração demoram esse tanto para refletir. Identificador inexistente retorna `404`. Limite: 300 requisições/minuto por IP.",
+                "description": "Endpoint público, sem token: devolve a configuração do widget para o boot — `name`, `widget_color`, `welcome_message`, `theme` (`light` ou `dark`), `message_preview` (quando preenchida, o widget a exibe como teaser junto à bolha antes de abrir; `null` = sem teaser) e `display_mode` (`floating` = bolha no canto; `fullscreen` = chat em tela cheia, sem bolha, teaser, minimizar ou branding). O `{identifier}` é o id do canal registrado em `POST /website-channel`.\n\nA resposta é cacheável (`Cache-Control` público de 5 minutos) — mudanças de configuração demoram esse tanto para refletir. Identificador inexistente retorna `404`. Limite: 300 requisições/minuto por IP.",
                 "summary": "Config do widget (público)",
                 "tags": [
                     "Canal do Site"
@@ -1524,6 +1689,13 @@
                                                 "string",
                                                 "null"
                                             ]
+                                        },
+                                        "display_mode": {
+                                            "type": "string",
+                                            "enum": [
+                                                "floating",
+                                                "fullscreen"
+                                            ]
                                         }
                                     }
                                 }
@@ -1563,7 +1735,7 @@
             },
             "post": {
                 "operationId": "website-channel.store",
-                "description": "Registra um site do tenant como canal de atendimento via widget. O `id` retornado é o identificador público de embed: ele vai no snippet colado no site (não é segredo) e identifica o canal nos endpoints públicos e no canal de websocket.\n\n`category_id` define a fila para onde as conversas vão no atendimento humano e `assistant_id` o agente de IA que atende primeiro; sem eles, vale a distribuição padrão da conta.\n\n`widget_color`, `welcome_message`, `theme` (`light` ou `dark`, padrão `light`) e `message_preview` compõem a configuração do widget, devolvida pelo endpoint público de config. `message_preview`, quando preenchida, aparece como teaser junto à bolha antes de o visitante abrir o widget.",
+                "description": "Registra um site do tenant como canal de atendimento via widget. O `id` retornado é o identificador público de embed: ele vai no snippet colado no site (não é segredo) e identifica o canal nos endpoints públicos e no canal de websocket.\n\n`category_id` define a fila para onde as conversas vão no atendimento humano e `assistant_id` o agente de IA que atende primeiro; sem eles, vale a distribuição padrão da conta.\n\n`widget_color`, `welcome_message`, `theme` (`light` ou `dark`, padrão `light`), `message_preview` e `display_mode` compõem a configuração do widget, devolvida pelo endpoint público de config. `message_preview`, quando preenchida, aparece como teaser junto à bolha antes de o visitante abrir o widget. `display_mode` (`floating` ou `fullscreen`, padrão `floating`) define a apresentação: `floating` é a bolha no canto do site; `fullscreen` ocupa a tela toda para embutir o chat como app — sem bolha, sem teaser, sem minimizar e sem o branding da plataforma.\n\n`snippet_user_fields` é a lista de dados do cliente que o snippet deve declarar via `Pipeelo(\"setUser\", …)` — qualquer subconjunto de `name`, `email`, `phone` e `document`, ou `null` para nenhum. Serve ao painel para montar o código de embed: não entra na configuração pública do widget nem altera o comportamento do canal.",
                 "summary": "Registrar canal do site",
                 "tags": [
                     "Canal do Site"
@@ -1601,7 +1773,7 @@
         "/website-channel/{id}": {
             "put": {
                 "operationId": "website-channel.update",
-                "description": "Atualiza o nome, a categoria, o assistente de IA, a cor, o tema, a mensagem de boas-vindas e o teaser (`message_preview`) do widget. Mudanças de config podem levar alguns minutos para refletir no widget, por causa do cache do endpoint público.",
+                "description": "Atualiza o nome, a categoria, o assistente de IA, a cor, o tema, a mensagem de boas-vindas, o teaser (`message_preview`), o modo de exibição (`display_mode`) e os campos de identificação do snippet (`snippet_user_fields`) do widget. Mudanças de config podem levar alguns minutos para refletir no widget, por causa do cache do endpoint público.",
                 "summary": "Atualizar canal do site",
                 "tags": [
                     "Canal do Site"
@@ -1734,6 +1906,7 @@
             },
             "post": {
                 "operationId": "categories.store",
+                "description": "Cria uma categoria (fila de atendimento). `reassign_after_minutes` liga a reatribuição automática do chat quando o atendente fica sem responder; `reassign_to_fallback` envia o chat para `fallback_category_id` em vez da própria fila e exige esse campo preenchido; `reassign_business_hours_only` restringe a reatribuição ao horário de atendimento da categoria.",
                 "summary": "Criar categoria",
                 "tags": [
                     "Categorias"
@@ -1822,6 +1995,7 @@
             },
             "put": {
                 "operationId": "categories.update",
+                "description": "Atualiza a categoria; campos omitidos permanecem inalterados. Os campos `reassign_after_minutes`, `reassign_to_fallback` e `reassign_business_hours_only` controlam a reatribuição automática por falta de resposta do atendente.",
                 "summary": "Atualizar categoria",
                 "tags": [
                     "Categorias"
@@ -2184,7 +2358,7 @@
         "/calls/token": {
             "post": {
                 "operationId": "call.token",
-                "description": "Gera o token JWT da Twilio Voice para o usuário autenticado atender e realizar chamadas no navegador. Expira em 1 hora.",
+                "description": "Gera os tokens JWT do softphone para o usuário autenticado atender e realizar chamadas no navegador. Retorna uma lista com um token por conta de voz provisionada, na ordem de criação das contas; instancie um SDK por item. O campo `provider` indica o SDK: `twilio` (Twilio Voice, expira em 1 hora) ou `telnyx` (`@telnyx/webrtc`, expira em 24 horas; `identity` traz o `sip_username` da credencial do agente).",
                 "summary": "Gerar token de voz",
                 "tags": [
                     "Chamadas"
@@ -2195,23 +2369,52 @@
                         "content": {
                             "application/json": {
                                 "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/calls/dial": {
+            "post": {
+                "operationId": "call.dial",
+                "description": "Inicia uma chamada de saída em contas Telnyx: cria a chamada, liga a perna SIP do agente autenticado (atendida automaticamente pelo softphone) e transfere para o número de destino com o caller ID do número informado. Retorna o `call_id` para correlação no softphone. Números de contas Twilio são recusados.",
+                "summary": "Discar para um cliente (click-to-call)",
+                "tags": [
+                    "Chamadas"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DialCallRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
                                     "type": "object",
                                     "properties": {
-                                        "token": {
+                                        "call_id": {
                                             "type": "string"
-                                        },
-                                        "identity": {
-                                            "type": "string"
-                                        },
-                                        "expires_in": {
-                                            "type": "integer",
-                                            "const": 3600
                                         }
                                     },
                                     "required": [
-                                        "token",
-                                        "identity",
-                                        "expires_in"
+                                        "call_id"
                                     ]
                                 }
                             }
@@ -2219,6 +2422,9 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -2237,6 +2443,37 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/UpdateCallPresenceRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/calls/transfer": {
+            "post": {
+                "operationId": "call.transfer",
+                "description": "Transfere a chamada em andamento para outro atendente disponível. O atendente atual permanece na ligação enquanto o destino é chamado (25 segundos): se atender, o cliente passa a falar com ele e o atendente atual é desconectado; se não atender, nada muda e a ligação continua com o atendente atual. Disponível apenas para o atendente que está na chamada e para chamadas recebidas em andamento.",
+                "summary": "Transferir chamada para outro atendente",
+                "tags": [
+                    "Chamadas"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TransferCallRequest"
                             }
                         }
                     }
@@ -2706,7 +2943,7 @@
             },
             "post": {
                 "operationId": "call-accounts.store",
-                "description": "Cria a conta de voz, valida as credenciais e provisiona a subconta na Twilio.",
+                "description": "Cria a conta de voz no provider escolhido (`provider`: `twilio` ou `telnyx`; padrão `twilio`), valida as credenciais e provisiona os recursos remotos. Twilio: `account_sid`, `api_key_sid`, `api_key_secret`, `auth_token`. Telnyx: `api_key`, `public_key`.",
                 "summary": "Criar conta de voz",
                 "tags": [
                     "Contas de voz"
@@ -2744,6 +2981,7 @@
         "/call-accounts/{id}": {
             "put": {
                 "operationId": "call-accounts.update",
+                "description": "Atualiza as credenciais conforme o provider da conta. Twilio: `api_key_sid`, `api_key_secret`, `auth_token`. Telnyx: `api_key`, `public_key`.",
                 "summary": "Atualizar conta de voz",
                 "tags": [
                     "Contas de voz"
@@ -3160,7 +3398,7 @@
             },
             "post": {
                 "operationId": "chat.store",
-                "description": "Abre uma conversa com um cliente. Informe `customer_id` ou `customer_phone` (o cliente é criado automaticamente se não existir). Com `template_name`, envia um template HSM na abertura — disponível apenas em canais WhatsApp Official (400 em outros canais).",
+                "description": "Abre uma conversa com um cliente. Informe `customer_id` ou `customer_phone` (o cliente é criado automaticamente se não existir). Com `template_name`, envia um template HSM na abertura — disponível nos canais WhatsApp Official e WhatsApp Cloud (400 nos demais canais).",
                 "summary": "Criar conversa",
                 "tags": [
                     "Conversas"
@@ -3228,7 +3466,7 @@
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "const": "Templates HSM são suportados apenas para o canal WHATSAPP_OFFICIAL."
+                                            "const": "Templates HSM são suportados apenas para os canais WHATSAPP_OFFICIAL e WHATSAPP_CLOUD."
                                         }
                                     },
                                     "required": [
@@ -3573,6 +3811,134 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/chats/amount-by-channel": {
+            "get": {
+                "operationId": "chats.amount-by-channel",
+                "description": "Retorna a quantidade de conversas por canal no período, com o detalhamento por subcanal (conta conectada) aninhado em cada canal. O período é obrigatório e limitado a 90 dias.",
+                "summary": "Contar conversas por canal",
+                "tags": [
+                    "Conversas"
+                ],
+                "parameters": [
+                    {
+                        "name": "start_period",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "end_period",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "channel",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "sub_channel_id",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "total": {
+                                            "type": "integer"
+                                        },
+                                        "channels": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "channel": {
+                                                        "type": "string",
+                                                        "description": "Canal de mensagem (ex.: `WHATSAPP_OFFICIAL`, `INSTAGRAM`, `IMPORTED`)."
+                                                    },
+                                                    "total": {
+                                                        "type": "integer"
+                                                    },
+                                                    "sub_channels": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "id": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                },
+                                                                "name": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                },
+                                                                "total": {
+                                                                    "type": "integer"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "id",
+                                                                "name",
+                                                                "total"
+                                                            ]
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "channel",
+                                                    "total",
+                                                    "sub_channels"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "total",
+                                        "channels"
+                                    ]
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -4503,12 +4869,12 @@
             },
             "post": {
                 "operationId": "facebook-messenger.store",
+                "description": "Conecta as Páginas do Facebook via código de autorização OAuth (`code`). O backend troca o código por um token de longa duração e conecta todas as Páginas da conta; Páginas já conectadas no mesmo workspace são reconectadas com o token renovado. Retorna as Páginas conectadas e as ignoradas com o motivo.",
                 "summary": "Conectar conta Messenger",
                 "tags": [
                     "Facebook Messenger"
                 ],
                 "requestBody": {
-                    "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
@@ -4529,7 +4895,56 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/FacebookMessengerData"
+                                    "type": "object",
+                                    "properties": {
+                                        "connected": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "page_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "status": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "skipped": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "page_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "reason": {
+                                                        "type": "string",
+                                                        "description": "page_already_registered ou connection_failed."
+                                                    }
+                                                },
+                                                "required": [
+                                                    "page_id",
+                                                    "name",
+                                                    "reason"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "connected",
+                                        "skipped"
+                                    ]
                                 }
                             }
                         }
@@ -4601,6 +5016,274 @@
                 "responses": {
                     "204": {
                         "description": "No content"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/dispatch-failures": {
+            "get": {
+                "operationId": "dispatchFailure.index",
+                "description": "Retorna as falhas de envio por cliente de notificadores e campanhas (telefone, nome e motivo: `CHAT_IN_PROGRESS`, `SEND_FAILED` ou `NOT_DELIVERED`), ordenadas da mais recente.",
+                "summary": "Listar falhas de envio",
+                "tags": [
+                    "Falhas de envio"
+                ],
+                "parameters": [
+                    {
+                        "name": "source",
+                        "in": "query",
+                        "description": "Filtra pela origem: `notifier` ou `campaign`.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "source_id",
+                        "in": "query",
+                        "description": "Filtra pelo id do notificador ou da campanha.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "customer_phone",
+                        "in": "query",
+                        "description": "Busca pelo telefone do cliente.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "reason",
+                        "in": "query",
+                        "description": "Filtra pelo motivo: `chat_in_progress`, `send_failed` ou `not_delivered`.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "Início do período (`Y-m-d H:i:s`).",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "Fim do período (`Y-m-d H:i:s`).",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Página a retornar (padrão 1).",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Itens por página (padrão 15).",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "current_page": {
+                                            "type": "integer"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/DispatchFailureData"
+                                            }
+                                        },
+                                        "first_page_url": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "from": {
+                                            "type": [
+                                                "integer",
+                                                "null"
+                                            ]
+                                        },
+                                        "last_page": {
+                                            "type": "integer"
+                                        },
+                                        "last_page_url": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "links": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "url": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "label": {
+                                                        "type": "string"
+                                                    },
+                                                    "active": {
+                                                        "type": "boolean"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "url",
+                                                    "label",
+                                                    "active"
+                                                ]
+                                            }
+                                        },
+                                        "next_page_url": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "path": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "per_page": {
+                                            "type": "integer"
+                                        },
+                                        "prev_page_url": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "to": {
+                                            "type": [
+                                                "integer",
+                                                "null"
+                                            ]
+                                        },
+                                        "total": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "required": [
+                                        "current_page",
+                                        "data",
+                                        "first_page_url",
+                                        "from",
+                                        "last_page",
+                                        "last_page_url",
+                                        "links",
+                                        "next_page_url",
+                                        "path",
+                                        "per_page",
+                                        "prev_page_url",
+                                        "to",
+                                        "total"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/dispatch-failures/export": {
+            "get": {
+                "operationId": "dispatchFailure.export",
+                "description": "Gera uma planilha XLSX com as falhas de envio, aceitando os mesmos filtros da listagem.",
+                "summary": "Exportar falhas de envio (XLSX)",
+                "tags": [
+                    "Falhas de envio"
+                ],
+                "parameters": [
+                    {
+                        "name": "source",
+                        "in": "query",
+                        "description": "Filtra pela origem: `notifier` ou `campaign`.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "source_id",
+                        "in": "query",
+                        "description": "Filtra pelo id do notificador ou da campanha.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "customer_phone",
+                        "in": "query",
+                        "description": "Busca pelo telefone do cliente.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "reason",
+                        "in": "query",
+                        "description": "Filtra pelo motivo: `chat_in_progress`, `send_failed` ou `not_delivered`.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "Início do período (`Y-m-d H:i:s`).",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "Fim do período (`Y-m-d H:i:s`).",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
@@ -6059,10 +6742,67 @@
                 }
             }
         },
+        "/chats/message/interactive": {
+            "post": {
+                "operationId": "chatMessage.sendInteractiveMessage",
+                "description": "Envia uma mensagem com opções clicáveis (`text` + `items`, cada item com `title`, `value` e `description` opcional). No WhatsApp, até 3 itens viram botões de resposta rápida; de 4 a 10, um menu de lista aberto pelo botão `button_label` (canais WhatsApp aceitam no máximo 10 itens). Nos demais canais, os itens viram quick replies (Messenger/Instagram), teclado inline (Telegram) ou lista no widget (Site/App). A escolha do cliente chega como mensagem recebida com `selected_value` igual ao `value` do item.",
+                "summary": "Enviar mensagem interativa",
+                "tags": [
+                    "Mensagens"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SendInteractiveMessageRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "400": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "const": "Não foi possível enviar a mensagem interativa."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageResourceData"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/chats/message/order-details": {
             "post": {
                 "operationId": "messageTemplate.sendOrderDetails",
-                "description": "Envia uma mensagem de detalhes de pedido (order details) em canais WhatsApp Official. Com `is_background=true`, o envio é enfileirado e responde 202.",
+                "description": "Envia uma mensagem de detalhes de pedido (order details) em canais WhatsApp Official e WhatsApp Cloud. Com `is_background=true`, o envio é enfileirado e responde 202.",
                 "summary": "Enviar detalhes de pedido",
                 "tags": [
                     "Mensagens"
@@ -6079,7 +6819,7 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "`MessageResourceData`",
+                        "description": "",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -7488,7 +8228,7 @@
         "/analytics/customer/session/count": {
             "get": {
                 "operationId": "analytics.customer.count",
-                "description": "Retorna a contagem de sessões de clientes no período informado.",
+                "description": "Retorna a contagem de sessões de clientes no período informado. Exige `start_period` e `end_period` (máximo de 90 dias).",
                 "summary": "Contar sessões de clientes",
                 "tags": [
                     "Métricas de clientes"
@@ -9080,11 +9820,11 @@
                 }
             }
         },
-        "/notifier/failure-logs": {
+        "/notifier/adapters": {
             "get": {
-                "operationId": "notifier.failureLogs",
-                "description": "Retorna os logs de falha de envio do tenant no serviço de notificações.",
-                "summary": "Listar falhas de envio",
+                "operationId": "notifier.adapters",
+                "description": "Retorna os adaptadores do motor interno disponíveis conforme o setor do tenant, com os campos de formulário (nome, tipo, obrigatoriedade, default e opções) e as variáveis de template de cada um.",
+                "summary": "Listar adaptadores do motor interno",
                 "tags": [
                     "Notificadores"
                 ],
@@ -9097,8 +9837,51 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "description": "Resposta repassada diretamente do serviço de notificações. Em caso de falha de comunicação, retorna 502 com `{\"message\": \"Erro ao comunicar com o Notifier.\"}`."
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "name": {
+                                                "type": "string"
+                                            },
+                                            "adapters": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "name": {
+                                                            "type": "string"
+                                                        },
+                                                        "is_file": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "fields": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "variables": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "string"
+                                                            }
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "name",
+                                                        "is_file",
+                                                        "fields",
+                                                        "variables"
+                                                    ]
+                                                }
+                                            }
+                                        },
+                                        "required": [
+                                            "name",
+                                            "adapters"
+                                        ]
+                                    }
                                 }
                             }
                         }
@@ -9600,8 +10383,8 @@
         "/notifier/trigger/{notifierId}": {
             "post": {
                 "operationId": "notifier.trigger",
-                "description": "Aciona a integração vinculada ao notificador no serviço de notificações.",
-                "summary": "Acionar integração do notificador",
+                "description": "Aciona a busca do notificador pela fonte do dono do registro: motor interno executa na plataforma; registros do serviço externo acionam a integração vinculada.",
+                "summary": "Acionar busca do notificador",
                 "tags": [
                     "Notificadores"
                 ],
@@ -9633,10 +10416,65 @@
                 }
             }
         },
+        "/notifier/retry/{notifierId}": {
+            "post": {
+                "operationId": "notifier.retry",
+                "description": "Reexecuta a busca de um notificador do motor interno habilitado (outros retornam 422), com `days_offset` opcional substituindo o configurado. Ao fim da busca, todas as pendências do notificador são enviadas imediatamente, respeitando `dispatch_days`; pendências já existentes para o mesmo telefone não são substituídas. Limite de 2 reprocessamentos por dia por notificador (429).",
+                "summary": "Reprocessar busca do notificador",
+                "tags": [
+                    "Notificadores"
+                ],
+                "parameters": [
+                    {
+                        "name": "notifierId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RetryNotifierRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/notifier/dispatches/{notifierId}": {
             "get": {
                 "operationId": "notifier.dispatches",
-                "description": "Retorna os disparos registrados da integração no serviço de notificações.",
+                "description": "Retorna os disparos pendentes pela fonte do dono do registro: banco da plataforma para o motor interno, serviço externo para os demais.",
                 "summary": "Listar disparos do notificador",
                 "tags": [
                     "Notificadores"
@@ -9672,6 +10510,7 @@
         "/notifier/dispatches/count/{notifierId}": {
             "get": {
                 "operationId": "notifier.dispatchesCount",
+                "description": "Retorna a quantidade de disparos pendentes pela fonte do dono do registro: banco da plataforma para o motor interno, serviço externo para os demais.",
                 "summary": "Contar disparos do notificador",
                 "tags": [
                     "Notificadores"
@@ -9787,7 +10626,7 @@
             },
             "post": {
                 "operationId": "call-numbers.store",
-                "description": "Vincula um número de voz: verifica o número na Twilio e configura o fluxo de roteamento de chamadas.",
+                "description": "Vincula um número de voz conforme o provider da conta: verifica o número no provider (Twilio ou Telnyx) e configura o roteamento de chamadas. O campo `direct_to_queue` (exige exatamente um departamento) faz a chamada entrar direto na fila, sem saudação.",
                 "summary": "Vincular número",
                 "tags": [
                     "Números de telefone"
@@ -9845,6 +10684,54 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/call-numbers/direct/{id}": {
+            "put": {
+                "operationId": "callNumber.direct",
+                "description": "Ativa ou desativa a fila direta do número: a chamada entra direto na fila do departamento, sem saudação nem menu. Exige exatamente um departamento. Na Twilio, republica o Studio Flow do número.",
+                "summary": "Ativar/desativar fila direta",
+                "tags": [
+                    "Números de telefone"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateCallNumberDirectRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CallNumberData"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -9908,6 +10795,73 @@
                                     "type": "array",
                                     "items": {
                                         "$ref": "#/components/schemas/TwilioNumberData"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/call-numbers/telnyx/{callAccountId}": {
+            "get": {
+                "operationId": "callNumber.telnyx",
+                "description": "Consulta os números de telefone existentes na conta Telnyx informada.",
+                "summary": "Listar números disponíveis na Telnyx",
+                "tags": [
+                    "Números de telefone"
+                ],
+                "parameters": [
+                    {
+                        "name": "callAccountId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "available",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "0",
+                                "1",
+                                "true",
+                                "false"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/TelnyxNumberData"
                                     }
                                 }
                             }
@@ -10083,10 +11037,20 @@
         "/template/wabas": {
             "get": {
                 "operationId": "messageTemplate.wabas",
-                "description": "Retorna os IDs de WhatsApp Business Account (WABA) distintos entre os canais conectados.",
+                "description": "Retorna os IDs de WhatsApp Business Account (WABA) distintos entre os canais conectados, somando WhatsApp Official e WhatsApp Cloud. Com `with_channel=1`, retorna objetos `{waba_id, message_channel, name, phone, numbers}` — uma entrada por provedor quando a mesma WABA existe nos dois. `numbers` traz todos os números daquela WABA, ordenados pelo canal padrão primeiro e depois por nome; `name` e `phone` repetem o primeiro item de `numbers` e servem de rótulo legível.",
                 "summary": "Listar WABAs do tenant",
                 "tags": [
                     "Templates"
+                ],
+                "parameters": [
+                    {
+                        "name": "with_channel",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean",
+                            "default": false
+                        }
+                    }
                 ],
                 "responses": {
                     "401": {
@@ -10098,6 +11062,7 @@
                             "application/json": {
                                 "schema": {
                                     "type": "array",
+                                    "description": "Array de strings por padrão; com `with_channel=1`, array de objetos `{waba_id, message_channel, name, phone, numbers}`, onde cada item de `numbers` é `{id, name, phone, is_default}` e `id` é o id do canal na tabela do provedor indicado por `message_channel`.",
                                     "items": {
                                         "type": "string"
                                     }
@@ -10150,6 +11115,22 @@
                         }
                     },
                     {
+                        "name": "type",
+                        "in": "query",
+                        "description": "Tipo do header do template (ex.: `DOCUMENT`, `IMAGE`, `VIDEO`, `TEXT`).",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "message_channel",
+                        "in": "query",
+                        "description": "Provedor do template (`WHATSAPP_OFFICIAL` ou `WHATSAPP_CLOUD`). Combine com `waba_id` quando a mesma WABA existe nos dois provedores.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
                         "name": "waba_id",
                         "in": "query",
                         "description": "Templates da WABA.",
@@ -10158,9 +11139,9 @@
                         }
                     },
                     {
-                        "name": "whatsapp_official_id",
+                        "name": "sub_channel_id",
                         "in": "query",
-                        "description": "Templates da WABA do canal informado.",
+                        "description": "Templates da WABA do canal informado. Use junto com `message_channel` para resolver o canal no provedor correto.",
                         "schema": {
                             "type": "string"
                         }
@@ -10326,7 +11307,7 @@
             },
             "post": {
                 "operationId": "messageTemplate.store",
-                "description": "Submete um novo template à aprovação da Meta e o registra localmente com status `PENDING`. O corpo da resposta é repassado do provedor WhatsApp.",
+                "description": "Submete um novo template à aprovação da Meta e o registra localmente com status `PENDING`. Use `message_channel` (`WHATSAPP_OFFICIAL`, padrão, ou `WHATSAPP_CLOUD`) para escolher o provedor. Botões `URL` com variáveis na URL (ex.: `https://site.com/{{1}}`) exigem `example` com a URL de exemplo preenchida. O corpo da resposta é repassado do provedor WhatsApp.",
                 "summary": "Criar template",
                 "tags": [
                     "Templates"
@@ -10354,7 +11335,7 @@
                             "application/json": {
                                 "schema": {
                                     "type": "object",
-                                    "description": "Resposta repassada do provedor WhatsApp (360dialog)."
+                                    "description": "Resposta repassada do provedor WhatsApp (360dialog ou Meta Cloud API)."
                                 }
                             }
                         }
@@ -10397,7 +11378,7 @@
             },
             "put": {
                 "operationId": "messageTemplate.update",
-                "description": "Atualiza o template no provedor WhatsApp e retorna o status local para `PENDING` até nova aprovação.",
+                "description": "Atualiza o template no provedor WhatsApp (360dialog ou Meta Cloud API, conforme o `message_channel` do template) e retorna o status local para `PENDING` até nova aprovação. Aceita `header_file` para trocar a mídia do header; nesse caso envie como `multipart/form-data` via `POST` com `_method=PUT`. Templates Cloud importados antes da sincronização de `id` exigem um `POST /template/sync` prévio.",
                 "summary": "Atualizar template",
                 "tags": [
                     "Templates"
@@ -10415,7 +11396,7 @@
                 "requestBody": {
                     "required": true,
                     "content": {
-                        "application/json": {
+                        "multipart/form-data": {
                             "schema": {
                                 "$ref": "#/components/schemas/UpdateMessageTemplateRequest"
                             }
@@ -10435,7 +11416,7 @@
                             "application/json": {
                                 "schema": {
                                     "type": "object",
-                                    "description": "Resposta repassada do provedor WhatsApp (360dialog)."
+                                    "description": "Resposta repassada do provedor WhatsApp (360dialog ou Meta Cloud API)."
                                 }
                             }
                         }
@@ -10444,6 +11425,7 @@
             },
             "delete": {
                 "operationId": "messageTemplate.destroy",
+                "description": "Exclui o template no provedor WhatsApp (360dialog ou Meta Cloud API, conforme o `message_channel` do template) e localmente.",
                 "summary": "Excluir template",
                 "tags": [
                     "Templates"
@@ -10471,7 +11453,7 @@
         "/template/sync": {
             "post": {
                 "operationId": "messageTemplate.sync",
-                "description": "Importa e sincroniza os templates existentes no provedor WhatsApp, agrupados por WABA. Retorna 207 quando houver falhas parciais.",
+                "description": "Importa e sincroniza os templates existentes nos provedores WhatsApp (360dialog e Meta Cloud API), agrupados por WABA. Retorna 207 quando houver falhas parciais.",
                 "summary": "Sincronizar templates",
                 "tags": [
                     "Templates"
@@ -10518,7 +11500,7 @@
         "/template/send": {
             "post": {
                 "operationId": "messageTemplate.send",
-                "description": "Envia uma mensagem de template (HSM) para a conversa informada e registra a mensagem enviada.",
+                "description": "Envia uma mensagem de template (HSM) para a conversa informada e registra a mensagem enviada. Suporta conversas dos canais WhatsApp Official e WhatsApp Cloud.",
                 "summary": "Enviar template",
                 "tags": [
                     "Templates"
@@ -11612,10 +12594,71 @@
                 }
             }
         },
+        "/whatsapp-cloud/verify/{id}": {
+            "post": {
+                "operationId": "whatsapp-cloud.verify",
+                "description": "Relê o estado do número na Meta e conclui o registro do canal quando possível, sem abrir o popup: se a Meta já confirma a verificação (por exemplo após verificar o número no WhatsApp Manager), o número é registrado e o canal ativado na hora. Se o número segue não verificado, o canal permanece como está e a resposta indica o `status` atual — nesse caso é preciso refazer a conexão pelo popup de Embedded Signup. Canais `active` retornam sem nenhuma chamada à Meta.",
+                "summary": "Reverificar canal WhatsApp Cloud",
+                "tags": [
+                    "WhatsApp Cloud"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WhatsappCloudData"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/whatsapp-cloud": {
+            "get": {
+                "operationId": "whatsapp-cloud.index",
+                "description": "Retorna os canais WhatsApp Cloud conectados, ordenados por nome. O campo `status` indica se o canal está `active`, `pending` (aguardando a Meta concluir a ativação do número) ou `action_required` (a Meta não confirmou a verificação do número e é preciso verificar novamente).",
+                "summary": "Listar canais WhatsApp Cloud",
+                "tags": [
+                    "WhatsApp Cloud"
+                ],
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/WhatsappCloudData"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
             "post": {
                 "operationId": "whatsapp-cloud.store",
-                "description": "Valida as credenciais informadas (WABA, número e token de acesso) na API Cloud da Meta e ativa o canal, inscrevendo o webhook da WABA para receber eventos. Use `is_default` para definir o canal como padrão do tenant, removendo o padrão de outros canais WhatsApp (Official, Baileys ou Cloud).",
+                "description": "Recebe o `code` retornado pelo popup de Embedded Signup da Meta junto com `waba_id` e `phone_number_id`, troca o código por um token de acesso, registra o número na Cloud API com um PIN gerado automaticamente quando necessário e ativa o canal, inscrevendo o webhook da WABA para receber eventos. Quando a Meta ainda não terminou de verificar o número (comum em migrações entre WABAs), o canal é criado com `status: pending` e um job em background tenta concluir o registro por alguns minutos, transmitindo o evento `whatsapp-cloud-connected` no canal `private-tenant.{tenantId}` ao ativar; se a verificação não se confirmar, o canal passa a `status: action_required` e é preciso verificar o número novamente. Repetir a conexão do mesmo número (mesmo que a Meta emita um novo `phone_number_id`) retoma o canal existente com um token novo, reutilizando o PIN. Use `is_default` para definir o canal como padrão do tenant, removendo o padrão de outros canais WhatsApp (Official, Baileys ou Cloud). Opcionalmente informe `assistant_id` e/ou `category_id` (devem existir) para vincular o número a um assistente específico ou rotear novas conversas para uma fila; se omitidos, o assistente padrão do tenant é usado.",
                 "summary": "Conectar número WhatsApp Cloud",
                 "tags": [
                     "WhatsApp Cloud"
@@ -11625,7 +12668,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/SetupWhatsappCloudRequest"
+                                "$ref": "#/components/schemas/EmbeddedSignupWhatsappCloudRequest"
                             }
                         }
                     }
@@ -11646,6 +12689,78 @@
                                 }
                             }
                         }
+                    }
+                }
+            }
+        },
+        "/whatsapp-cloud/{id}": {
+            "put": {
+                "operationId": "whatsapp-cloud.update",
+                "description": "Atualiza nome, categoria e assistente de IA do canal. Use `is_default` para definir o canal como padrão do tenant, removendo o padrão de outros canais WhatsApp (Official, Baileys ou Cloud).",
+                "summary": "Atualizar canal WhatsApp Cloud",
+                "tags": [
+                    "WhatsApp Cloud"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateWhatsappCloudRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WhatsappCloudData"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "whatsapp-cloud.destroy",
+                "summary": "Remover canal WhatsApp Cloud",
+                "tags": [
+                    "WhatsApp Cloud"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
             }
@@ -12644,7 +13759,7 @@
                                         "cpf_cnpj_tipo": "cpf",
                                         "cep": "87010-***"
                                     },
-                                    "meta": {}
+                                    "meta": []
                                 }
                             }
                         }
@@ -13485,6 +14600,9 @@
                     },
                     "workspace_sid": {
                         "type": "string"
+                    },
+                    "provider": {
+                        "$ref": "#/components/schemas/CallProviderEnum"
                     }
                 },
                 "title": "CallAccountData"
@@ -13623,6 +14741,9 @@
                     "call_account_id": {
                         "type": "string"
                     },
+                    "provider": {
+                        "type": "string"
+                    },
                     "number": {
                         "type": "string"
                     },
@@ -13632,6 +14753,9 @@
                             "type": "string"
                         }
                     },
+                    "direct_to_queue": {
+                        "type": "boolean"
+                    },
                     "flow_sid": {
                         "type": "string"
                     },
@@ -13640,6 +14764,14 @@
                     }
                 },
                 "title": "CallNumberData"
+            },
+            "CallProviderEnum": {
+                "type": "string",
+                "enum": [
+                    "twilio",
+                    "telnyx"
+                ],
+                "title": "CallProviderEnum"
             },
             "CallStatusEnum": {
                 "type": "string",
@@ -13768,6 +14900,12 @@
                     "reassign_after_minutes": {
                         "type": "string"
                     },
+                    "reassign_to_fallback": {
+                        "type": "string"
+                    },
+                    "reassign_business_hours_only": {
+                        "type": "string"
+                    },
                     "distribution_type": {
                         "type": "string"
                     },
@@ -13785,6 +14923,8 @@
                     "reduced_max_chats_in_progress",
                     "warmup_minutes",
                     "reassign_after_minutes",
+                    "reassign_to_fallback",
+                    "reassign_business_hours_only",
                     "distribution_type",
                     "fallback_category_id"
                 ],
@@ -14360,7 +15500,8 @@
                                 "null"
                             ],
                             "format": "uuid"
-                        }
+                        },
+                        "maxItems": 50
                     }
                 },
                 "title": "CloseMultipleChatsRequest"
@@ -14368,6 +15509,13 @@
             "CreateCallAccountRequest": {
                 "type": "object",
                 "properties": {
+                    "provider": {
+                        "type": "string",
+                        "enum": [
+                            "twilio",
+                            "telnyx"
+                        ]
+                    },
                     "account_sid": {
                         "type": "string",
                         "pattern": "^AC[0-9a-f]{32}$"
@@ -14402,6 +15550,9 @@
                         "type": "string",
                         "pattern": "^\\+[1-9]\\d{1,14}$",
                         "maxLength": 20
+                    },
+                    "direct_to_queue": {
+                        "type": "boolean"
                     },
                     "departments": {
                         "type": "array",
@@ -14469,6 +15620,7 @@
                         "type": "string",
                         "enum": [
                             "WHATSAPP_OFFICIAL",
+                            "WHATSAPP_CLOUD",
                             "WHATSAPP_BAILEYS",
                             "IMPORTED",
                             "IMPORTED_HISTORY",
@@ -14557,6 +15709,18 @@
                             "null"
                         ],
                         "minimum": 1
+                    },
+                    "reassign_to_fallback": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "reassign_business_hours_only": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
                     },
                     "distribution_type": {
                         "type": [
@@ -14871,6 +16035,16 @@
                         "type": "string",
                         "maxLength": 10
                     },
+                    "message_channel": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "WHATSAPP_OFFICIAL",
+                            "WHATSAPP_CLOUD"
+                        ]
+                    },
                     "waba_id": {
                         "type": [
                             "string",
@@ -15061,6 +16235,12 @@
                             "null"
                         ]
                     },
+                    "is_internal_engine": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
                     "dispatch_at": {
                         "type": [
                             "string",
@@ -15091,12 +16271,6 @@
                             "type": "string"
                         }
                     },
-                    "is_paid": {
-                        "type": [
-                            "boolean",
-                            "null"
-                        ]
-                    },
                     "dispatch_config": {
                         "type": "object",
                         "properties": {
@@ -15104,6 +16278,10 @@
                                 "type": [
                                     "string",
                                     "null"
+                                ],
+                                "enum": [
+                                    "WHATSAPP_OFFICIAL",
+                                    "WHATSAPP_CLOUD"
                                 ]
                             },
                             "sub_channel_id": {
@@ -15709,6 +16887,65 @@
                 ],
                 "title": "DestroyMultipleRequest"
             },
+            "DialCallRequest": {
+                "type": "object",
+                "properties": {
+                    "to": {
+                        "type": "string",
+                        "pattern": "^\\+[1-9]\\d{1,14}$"
+                    },
+                    "call_number_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "required": [
+                    "to",
+                    "call_number_id"
+                ],
+                "title": "DialCallRequest"
+            },
+            "DispatchFailureData": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/DispatchSourceEnum"
+                    },
+                    "source_id": {
+                        "type": "string"
+                    },
+                    "customer_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "customer_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "customer_phone": {
+                        "type": "string"
+                    },
+                    "reason": {
+                        "$ref": "#/components/schemas/DispatchFailureReasonEnum"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "title": "DispatchFailureData"
+            },
+            "DispatchFailureReasonEnum": {
+                "type": "string",
+                "title": "DispatchFailureReasonEnum"
+            },
             "DispatchNotifierRequest": {
                 "type": "object",
                 "properties": {
@@ -15776,6 +17013,53 @@
                     "customer_phone"
                 ],
                 "title": "DispatchNotifierRequest"
+            },
+            "DispatchSourceEnum": {
+                "type": "string",
+                "title": "DispatchSourceEnum"
+            },
+            "EmbeddedSignupWhatsappCloudRequest": {
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "string"
+                    },
+                    "waba_id": {
+                        "type": "string"
+                    },
+                    "phone_number_id": {
+                        "type": "string"
+                    },
+                    "business_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "is_default": {
+                        "type": "boolean"
+                    },
+                    "category_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "assistant_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    }
+                },
+                "required": [
+                    "code",
+                    "waba_id",
+                    "phone_number_id"
+                ],
+                "title": "EmbeddedSignupWhatsappCloudRequest"
             },
             "FacebookMessengerData": {
                 "type": "object",
@@ -16285,7 +17569,13 @@
                     "buttons": {
                         "$ref": "#/components/schemas/DataCollection"
                     },
+                    "items": {
+                        "$ref": "#/components/schemas/DataCollection"
+                    },
                     "text": {
+                        "type": "string"
+                    },
+                    "selected_value": {
                         "type": "string"
                     },
                     "video": {
@@ -16531,7 +17821,7 @@
                             "type": "string"
                         }
                     },
-                    "is_paid": {
+                    "is_internal_engine": {
                         "type": "boolean"
                     },
                     "created_at": {
@@ -16562,12 +17852,6 @@
                     },
                     "engaged_count": {
                         "type": "integer"
-                    },
-                    "engaged_count_free": {
-                        "type": "integer"
-                    },
-                    "engaged_count_paid": {
-                        "type": "integer"
                     }
                 },
                 "required": [
@@ -16575,9 +17859,7 @@
                     "sent_success_count",
                     "sent_fail_count",
                     "delivered_count",
-                    "engaged_count",
-                    "engaged_count_free",
-                    "engaged_count_paid"
+                    "engaged_count"
                 ],
                 "title": "NotifierMetricsData"
             },
@@ -16602,6 +17884,31 @@
                     "metrics"
                 ],
                 "title": "NotifierMetricsResponseData"
+            },
+            "NotifierPendingDispatchData": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "notifier_id": {
+                        "type": "string"
+                    },
+                    "customer_phone": {
+                        "type": "string"
+                    },
+                    "customer_data": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "title": "NotifierPendingDispatchData"
             },
             "OfficialWhatsappSessionData": {
                 "type": "object",
@@ -16725,9 +18032,6 @@
                             "null"
                         ]
                     },
-                    "is_visible_to_ai": {
-                        "type": "boolean"
-                    },
                     "deleted_at": {
                         "type": [
                             "string",
@@ -16756,7 +18060,6 @@
                     "name",
                     "slug",
                     "description",
-                    "is_visible_to_ai",
                     "deleted_at",
                     "created_at",
                     "updated_at"
@@ -16783,9 +18086,6 @@
                     },
                     "count": {
                         "type": "string"
-                    },
-                    "is_visible_to_ai": {
-                        "type": "boolean"
                     }
                 },
                 "title": "ReasonChatData"
@@ -16798,9 +18098,6 @@
                     },
                     "description": {
                         "type": "string"
-                    },
-                    "is_visible_to_ai": {
-                        "type": "boolean"
                     }
                 },
                 "required": [
@@ -16846,10 +18143,19 @@
             "RegisterFacebookMessengerRequest": {
                 "type": "object",
                 "properties": {
-                    "page_id": {
+                    "code": {
                         "type": "string"
                     },
+                    "redirect_uri": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "access_token": {
+                        "type": "string"
+                    },
+                    "page_id": {
                         "type": "string"
                     },
                     "category_id": {
@@ -16867,10 +18173,6 @@
                         "format": "uuid"
                     }
                 },
-                "required": [
-                    "page_id",
-                    "access_token"
-                ],
                 "title": "RegisterFacebookMessengerRequest"
             },
             "RegisterInstagramRequest": {
@@ -16983,6 +18285,28 @@
                             "null"
                         ],
                         "maxLength": 255
+                    },
+                    "display_mode": {
+                        "type": "string",
+                        "enum": [
+                            "floating",
+                            "fullscreen"
+                        ]
+                    },
+                    "snippet_user_fields": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "name",
+                                "email",
+                                "phone",
+                                "document"
+                            ]
+                        }
                     }
                 },
                 "required": [
@@ -17095,6 +18419,20 @@
                 ],
                 "title": "ReminderResource"
             },
+            "RetryNotifierRequest": {
+                "type": "object",
+                "properties": {
+                    "days_offset": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": -365,
+                        "maximum": 365
+                    }
+                },
+                "title": "RetryNotifierRequest"
+            },
             "RoleData": {
                 "type": "object",
                 "properties": {
@@ -17145,33 +18483,18 @@
                         "type": "string",
                         "maxLength": 255
                     },
-                    "name": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "maxLength": 255
-                    },
-                    "phone": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "maxLength": 255
-                    },
-                    "email": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "email",
-                        "maxLength": 255
-                    },
                     "text": {
                         "type": [
                             "string",
                             "null"
                         ]
+                    },
+                    "selected_value": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 64
                     },
                     "image": {
                         "type": [
@@ -17208,6 +18531,39 @@
                         "format": "binary",
                         "contentMediaType": "application/octet-stream",
                         "maxLength": 50000
+                    },
+                    "user": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "maxLength": 255
+                            },
+                            "email": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "maxLength": 255
+                            },
+                            "phone": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "maxLength": 255
+                            },
+                            "document": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "maxLength": 255
+                            }
+                        }
                     }
                 },
                 "required": [
@@ -17409,6 +18765,67 @@
                     "image"
                 ],
                 "title": "SendImageMessageRequest"
+            },
+            "SendInteractiveMessageRequest": {
+                "type": "object",
+                "properties": {
+                    "chat_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "text": {
+                        "type": "string",
+                        "maxLength": 1024
+                    },
+                    "button_label": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 20
+                    },
+                    "is_broadcast": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "title": {
+                                    "type": "string",
+                                    "maxLength": 20
+                                },
+                                "value": {
+                                    "type": "string",
+                                    "maxLength": 64
+                                },
+                                "description": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 72
+                                }
+                            },
+                            "required": [
+                                "title",
+                                "value"
+                            ]
+                        },
+                        "minItems": 1,
+                        "maxItems": 13
+                    }
+                },
+                "required": [
+                    "chat_id",
+                    "text",
+                    "items"
+                ],
+                "title": "SendInteractiveMessageRequest"
             },
             "SendMultipleChatsToAIRequest": {
                 "type": "object",
@@ -17670,33 +19087,18 @@
                         "type": "string",
                         "format": "uuid"
                     },
-                    "name": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "maxLength": 255
-                    },
-                    "phone": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "maxLength": 255
-                    },
-                    "email": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "email",
-                        "maxLength": 255
-                    },
                     "text": {
                         "type": [
                             "string",
                             "null"
                         ]
+                    },
+                    "selected_value": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 64
                     },
                     "image": {
                         "type": [
@@ -17733,6 +19135,39 @@
                         "format": "binary",
                         "contentMediaType": "application/octet-stream",
                         "maxLength": 50000
+                    },
+                    "user": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "maxLength": 255
+                            },
+                            "email": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "maxLength": 255
+                            },
+                            "phone": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "maxLength": 255
+                            },
+                            "document": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "maxLength": 255
+                            }
+                        }
                     }
                 },
                 "required": [
@@ -17785,40 +19220,14 @@
                                 "null"
                             ],
                             "format": "uuid"
-                        }
+                        },
+                        "maxItems": 50
                     }
                 },
                 "required": [
                     "user_id"
                 ],
                 "title": "SentMultipleChatsToUserRequest"
-            },
-            "SetupWhatsappCloudRequest": {
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "waba_id": {
-                        "type": "string"
-                    },
-                    "phone_number_id": {
-                        "type": "string"
-                    },
-                    "access_token": {
-                        "type": "string"
-                    },
-                    "is_default": {
-                        "type": "boolean"
-                    }
-                },
-                "required": [
-                    "name",
-                    "waba_id",
-                    "phone_number_id",
-                    "access_token"
-                ],
-                "title": "SetupWhatsappCloudRequest"
             },
             "Tag": {
                 "type": "object",
@@ -17934,6 +19343,22 @@
                 },
                 "title": "TelegramBotData"
             },
+            "TelnyxNumberData": {
+                "type": "object",
+                "properties": {
+                    "number": {
+                        "type": "string"
+                    },
+                    "friendly_name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "number",
+                    "friendly_name"
+                ],
+                "title": "TelnyxNumberData"
+            },
             "TemplateHeaderResourceData": {
                 "type": "object",
                 "properties": {
@@ -18040,6 +19465,24 @@
                     "updated_at"
                 ],
                 "title": "TenantWeeklyOfficeHour"
+            },
+            "TransferCallRequest": {
+                "type": "object",
+                "properties": {
+                    "call_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "user_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "required": [
+                    "call_id",
+                    "user_id"
+                ],
+                "title": "TransferCallRequest"
             },
             "TwilioNumberData": {
                 "type": "object",
@@ -18180,6 +19623,18 @@
                 ],
                 "title": "UpdateCallAccountRequest"
             },
+            "UpdateCallNumberDirectRequest": {
+                "type": "object",
+                "properties": {
+                    "enabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "enabled"
+                ],
+                "title": "UpdateCallNumberDirectRequest"
+            },
             "UpdateCallPresenceRequest": {
                 "type": "object",
                 "properties": {
@@ -18235,6 +19690,18 @@
                             "null"
                         ],
                         "minimum": 1
+                    },
+                    "reassign_to_fallback": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "reassign_business_hours_only": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
                     },
                     "distribution_type": {
                         "type": [
@@ -18461,6 +19928,15 @@
                             "null"
                         ]
                     },
+                    "header_file": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "binary",
+                        "contentMediaType": "application/octet-stream",
+                        "maxLength": 102400
+                    },
                     "components": {
                         "type": "array",
                         "items": {
@@ -18654,12 +20130,6 @@
                             "type": "string"
                         }
                     },
-                    "is_paid": {
-                        "type": [
-                            "boolean",
-                            "null"
-                        ]
-                    },
                     "dispatch_config": {
                         "type": "object",
                         "properties": {
@@ -18667,6 +20137,10 @@
                                 "type": [
                                     "string",
                                     "null"
+                                ],
+                                "enum": [
+                                    "WHATSAPP_OFFICIAL",
+                                    "WHATSAPP_CLOUD"
                                 ]
                             },
                             "sub_channel_id": {
@@ -19015,6 +20489,28 @@
                             "null"
                         ],
                         "maxLength": 255
+                    },
+                    "display_mode": {
+                        "type": "string",
+                        "enum": [
+                            "floating",
+                            "fullscreen"
+                        ]
+                    },
+                    "snippet_user_fields": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "name",
+                                "email",
+                                "phone",
+                                "document"
+                            ]
+                        }
                     }
                 },
                 "title": "UpdateWebsiteChannelRequest"
@@ -19052,6 +20548,32 @@
                     }
                 },
                 "title": "UpdateWhatsAppOfficialRequest"
+            },
+            "UpdateWhatsappCloudRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "is_default": {
+                        "type": "boolean"
+                    },
+                    "category_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "assistant_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    }
+                },
+                "title": "UpdateWhatsappCloudRequest"
             },
             "UserData": {
                 "type": "object",
@@ -19391,6 +20913,15 @@
                     },
                     "message_preview": {
                         "type": "string"
+                    },
+                    "display_mode": {
+                        "type": "string"
+                    },
+                    "snippet_user_fields": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
                     }
                 },
                 "title": "WebsiteChannelData"
@@ -19429,8 +20960,20 @@
                     "phone_number_id": {
                         "type": "string"
                     },
+                    "category_id": {
+                        "type": "string"
+                    },
+                    "assistant_id": {
+                        "type": "string"
+                    },
                     "is_default": {
                         "type": "boolean"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "token": {
+                        "type": "string"
                     }
                 },
                 "title": "WhatsappCloudData"
@@ -19470,6 +21013,10 @@
                     }
                 },
                 "title": "WhatsappOfficialData"
+            },
+            "WidgetDisplayModeEnum": {
+                "type": "string",
+                "title": "WidgetDisplayModeEnum"
             },
             "WidgetThemeEnum": {
                 "type": "string",
@@ -19848,6 +21395,32 @@
                     "cep": "87010-***"
                 }
             },
+            "CrmError": {
+                "type": "object",
+                "properties": {
+                    "error": {
+                        "type": "object",
+                        "properties": {
+                            "code": {
+                                "type": "string"
+                            },
+                            "message": {
+                                "type": "string"
+                            },
+                            "request_id": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "details": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
             "CrmActivity": {
                 "type": "object",
                 "properties": {
@@ -20134,32 +21707,6 @@
                         "description": "Soma do valor estimado dos leads do estágio (0 quando não há)."
                     }
                 }
-            },
-            "CrmError": {
-                "type": "object",
-                "properties": {
-                    "error": {
-                        "type": "object",
-                        "properties": {
-                            "code": {
-                                "type": "string"
-                            },
-                            "message": {
-                                "type": "string"
-                            },
-                            "request_id": {
-                                "type": "string",
-                                "format": "uuid"
-                            },
-                            "details": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    }
-                }
             }
         },
         "responses": {
@@ -20208,120 +21755,6 @@
                             "required": [
                                 "message"
                             ]
-                        }
-                    }
-                }
-            },
-            "CrmUnauthorized": {
-                "description": "Chave ausente, inválida, expirada ou revogada.",
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "$ref": "#/components/schemas/CrmError"
-                        },
-                        "example": {
-                            "error": {
-                                "code": "MISSING_API_KEY",
-                                "message": "Header Authorization: Bearer <chave> ausente.",
-                                "request_id": "d08eeec9-4111-49e0-98f5-2bb68c2a87fd"
-                            }
-                        }
-                    }
-                }
-            },
-            "CrmForbidden": {
-                "description": "A chave não tem o escopo exigido pelo endpoint.",
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "$ref": "#/components/schemas/CrmError"
-                        },
-                        "example": {
-                            "error": {
-                                "code": "INSUFFICIENT_SCOPE",
-                                "message": "A chave não tem o escopo necessário: leads:read.",
-                                "request_id": "d08eeec9-4111-49e0-98f5-2bb68c2a87fd"
-                            }
-                        }
-                    }
-                }
-            },
-            "CrmNotFound": {
-                "description": "Recurso inexistente ou de outra empresa (indistinguíveis de propósito).",
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "$ref": "#/components/schemas/CrmError"
-                        },
-                        "example": {
-                            "error": {
-                                "code": "NOT_FOUND",
-                                "message": "Lead não encontrado.",
-                                "request_id": "d08eeec9-4111-49e0-98f5-2bb68c2a87fd"
-                            }
-                        }
-                    }
-                }
-            },
-            "CrmValidationError": {
-                "description": "Parâmetro, corpo ou cursor inválido.",
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "$ref": "#/components/schemas/CrmError"
-                        },
-                        "example": {
-                            "error": {
-                                "code": "VALIDATION_ERROR",
-                                "message": "contato_whatsapp é obrigatório e deve ter de 10 a 13 dígitos.",
-                                "request_id": "d08eeec9-4111-49e0-98f5-2bb68c2a87fd",
-                                "details": [
-                                    {
-                                        "field": "contato_whatsapp",
-                                        "code": "invalid"
-                                    }
-                                ]
-                            }
-                        }
-                    }
-                }
-            },
-            "CrmRateLimited": {
-                "description": "Limite de requisições excedido. Respeite o Retry-After.",
-                "headers": {
-                    "Retry-After": {
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "description": "Segundos até poder tentar de novo."
-                    },
-                    "X-RateLimit-Limit": {
-                        "schema": {
-                            "type": "integer"
-                        }
-                    },
-                    "X-RateLimit-Remaining": {
-                        "schema": {
-                            "type": "integer"
-                        }
-                    },
-                    "X-RateLimit-Reset": {
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                },
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "$ref": "#/components/schemas/CrmError"
-                        },
-                        "example": {
-                            "error": {
-                                "code": "RATE_LIMITED",
-                                "message": "Limite de requisições excedido.",
-                                "request_id": "d08eeec9-4111-49e0-98f5-2bb68c2a87fd"
-                            }
                         }
                     }
                 }
@@ -20384,6 +21817,10 @@
         {
             "name": "Templates",
             "description": "Templates de mensagem do WhatsApp Official (HSM)."
+        },
+        {
+            "name": "Falhas de envio",
+            "description": "Falhas de envio por cliente em notificadores e campanhas."
         },
         {
             "name": "WhatsApp Official",
@@ -20526,7 +21963,8 @@
                 "Mensagens rápidas",
                 "Lembretes",
                 "Notificadores",
-                "Templates"
+                "Templates",
+                "Falhas de envio"
             ]
         },
         {
