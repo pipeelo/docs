@@ -2358,7 +2358,7 @@
         "/calls/token": {
             "post": {
                 "operationId": "call.token",
-                "description": "Gera os tokens JWT do softphone para o usuário autenticado atender e realizar chamadas no navegador. Retorna uma lista com um token por conta de voz provisionada, na ordem de criação das contas; instancie um SDK por item. O campo `provider` indica o SDK: `twilio` (Twilio Voice, expira em 1 hora) ou `telnyx` (`@telnyx/webrtc`, expira em 24 horas; `identity` traz o `sip_username` da credencial do agente).",
+                "description": "Gera as credenciais do softphone para o usuário autenticado atender e realizar chamadas no navegador. Retorna uma lista com um item por conta de voz provisionada, na ordem de criação das contas; instancie um SDK por item. O campo `provider` indica o SDK: `twilio` (Twilio Voice, JWT que expira em 1 hora), `telnyx` (`@telnyx/webrtc`, JWT de 24 horas; `identity` traz o `sip_username` da credencial do agente) ou `direct` (SIP.js registrando por WSS no endereço do campo `ws_url`, presente só nesse provider; `identity` é o usuário SIP e `token` é a senha, que não expira — `expires_in` de 24 horas apenas indica quando buscar de novo).",
                 "summary": "Gerar token de voz",
                 "tags": [
                     "Chamadas"
@@ -2386,7 +2386,7 @@
         "/calls/dial": {
             "post": {
                 "operationId": "call.dial",
-                "description": "Inicia uma chamada de saída em contas Telnyx: cria a chamada, liga a perna SIP do agente autenticado (atendida automaticamente pelo softphone) e transfere para o número de destino com o caller ID do número informado. Retorna o `call_id` para correlação no softphone. Números de contas Twilio são recusados.",
+                "description": "Inicia uma chamada de saída em contas Telnyx e `direct`: cria a chamada, liga a perna SIP do agente autenticado (atendida automaticamente pelo softphone) e conecta ao número de destino com o caller ID do número informado. Retorna o `call_id` para correlação no softphone. Em contas `direct` a perna do cliente sai pelo tronco da operadora do tenant e o destino é validado antes de discar: só passam os prefixos liberados (Brasil por padrão) e os prefixos tarifados `0300`, `0500` e `0900` são bloqueados (422); o tenant também é limitado a 20 discagens por minuto (429). Números de contas Twilio são recusados.",
                 "summary": "Discar para um cliente (click-to-call)",
                 "tags": [
                     "Chamadas"
@@ -2943,7 +2943,7 @@
             },
             "post": {
                 "operationId": "call-accounts.store",
-                "description": "Cria a conta de voz no provider escolhido (`provider`: `twilio` ou `telnyx`; padrão `twilio`), valida as credenciais e provisiona os recursos remotos. Twilio: `account_sid`, `api_key_sid`, `api_key_secret`, `auth_token`. Telnyx: `api_key`, `public_key`.",
+                "description": "Cria a conta de voz no provider escolhido (`provider`: `twilio`, `telnyx` ou `direct`; padrão `twilio`), valida as credenciais e provisiona os recursos remotos. Twilio: `account_sid`, `api_key_sid`, `api_key_secret`, `auth_token`. Telnyx: `api_key`, `public_key`. Direct (tronco SIP): `sip_host`, `sip_port` (padrão 5060), `sip_username`, `sip_password` (nunca retornada nas leituras).",
                 "summary": "Criar conta de voz",
                 "tags": [
                     "Contas de voz"
@@ -2981,7 +2981,7 @@
         "/call-accounts/{id}": {
             "put": {
                 "operationId": "call-accounts.update",
-                "description": "Atualiza as credenciais conforme o provider da conta. Twilio: `api_key_sid`, `api_key_secret`, `auth_token`. Telnyx: `api_key`, `public_key`.",
+                "description": "Atualiza as credenciais conforme o provider da conta. Twilio: `api_key_sid`, `api_key_secret`, `auth_token`. Telnyx: `api_key`, `public_key`. Direct (tronco SIP): `sip_host`, `sip_port`, `sip_username`, `sip_password` (opcional; ausente mantém a atual).",
                 "summary": "Atualizar conta de voz",
                 "tags": [
                     "Contas de voz"
@@ -3133,6 +3133,14 @@
                         }
                     },
                     {
+                        "name": "department_ids",
+                        "in": "query",
+                        "description": "Departamentos (categorias), separados por vírgula: conversas na fila do departamento, de usuários vinculados a ele ou do usuário bot. Para gerentes com a restrição de visibilidade ativa, o servidor define o valor.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
                         "name": "start_period",
                         "in": "query",
                         "description": "Início do período (`Y-m-d H:i`), pela data de abertura.",
@@ -3257,6 +3265,14 @@
                         "name": "from_ad",
                         "in": "query",
                         "description": "Somente conversas originadas (ou não) de anúncios Meta.",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "without_bot",
+                        "in": "query",
+                        "description": "Oculta as conversas do usuário bot (agente de IA); conversas na fila continuam.",
                         "schema": {
                             "type": "boolean"
                         }
@@ -3661,6 +3677,14 @@
                         }
                     },
                     {
+                        "name": "department_ids",
+                        "in": "query",
+                        "description": "Departamentos (categorias), separados por vírgula: conversas na fila do departamento, de usuários vinculados a ele ou do usuário bot. Para gerentes com a restrição de visibilidade ativa, o servidor define o valor.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
                         "name": "start_period",
                         "in": "query",
                         "description": "Início do período (`Y-m-d H:i`), pela data de abertura.",
@@ -3785,6 +3809,14 @@
                         "name": "from_ad",
                         "in": "query",
                         "description": "Somente conversas originadas (ou não) de anúncios Meta.",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "without_bot",
+                        "in": "query",
+                        "description": "Oculta as conversas do usuário bot (agente de IA); conversas na fila continuam.",
                         "schema": {
                             "type": "boolean"
                         }
@@ -4036,7 +4068,7 @@
         "/chats/import": {
             "post": {
                 "operationId": "chats.import",
-                "description": "Importa conversas históricas via arquivo CSV ou JSON (`type`). Importações com 500 ou mais conversas são processadas de forma assíncrona, com notificação por e-mail ao concluir.",
+                "description": "Importa conversas históricas via arquivo CSV ou JSON (`type`). No JSON, cada conversa identifica o cliente por `customer_phone` ou por `identity` (`channel`, `source`, `external_id`) para canais sem telefone, com `customer_name` opcional usado na criação; reimportar a mesma identity reaproveita o cliente. Importações com 500 ou mais conversas são processadas de forma assíncrona, com notificação por e-mail ao concluir.",
                 "summary": "Importar conversas",
                 "tags": [
                     "Conversas"
@@ -4065,7 +4097,7 @@
                                                     "type": "integer"
                                                 },
                                                 "created_customers": {
-                                                    "type": "integer"
+                                                    "type": "string"
                                                 }
                                             },
                                             "required": [
@@ -4084,7 +4116,7 @@
                                                     "type": "boolean"
                                                 },
                                                 "created_customers": {
-                                                    "type": "integer"
+                                                    "type": "string"
                                                 }
                                             },
                                             "required": [
@@ -4194,7 +4226,7 @@
         "/chats/chats-by-customer/{customerId}": {
             "get": {
                 "operationId": "chat.chatsByCustomer",
-                "description": "Retorna a lista paginada das conversas de um cliente, com canal, protocolo e datas de início e fim.",
+                "description": "Retorna a lista paginada das conversas de um cliente, com canal, protocolo, datas de início e fim e a categoria (departamento) pela qual a conversa passou. A categoria é a última fila para a qual a conversa foi enviada e vem `null` quando ela nunca entrou em fila — por exemplo, quando foi atendida e encerrada pelo bot.",
                 "summary": "Listar conversas do cliente",
                 "tags": [
                     "Conversas"
@@ -4209,19 +4241,19 @@
                         }
                     },
                     {
-                        "name": "per_page",
-                        "in": "query",
-                        "schema": {
-                            "type": "string",
-                            "default": 20
-                        }
-                    },
-                    {
                         "name": "page",
                         "in": "query",
                         "schema": {
                             "type": "string",
                             "default": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Itens por página (padrão 20, máximo 30).",
+                        "schema": {
+                            "type": "integer"
                         }
                     }
                 ],
@@ -4242,7 +4274,76 @@
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/components/schemas/Chat"
+                                                "type": "object",
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string"
+                                                    },
+                                                    "message_channel": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "WHATSAPP_OFFICIAL",
+                                                            "WHATSAPP_CLOUD",
+                                                            "WHATSAPP_BAILEYS",
+                                                            "IMPORTED",
+                                                            "IMPORTED_HISTORY",
+                                                            "FACEBOOK_MESSENGER",
+                                                            "INSTAGRAM",
+                                                            "SIMULATION",
+                                                            "APP",
+                                                            "WEBSITE",
+                                                            "TELEGRAM"
+                                                        ]
+                                                    },
+                                                    "protocol": {
+                                                        "type": "string"
+                                                    },
+                                                    "started_at": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "ended_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ],
+                                                        "format": "date-time"
+                                                    },
+                                                    "category": {
+                                                        "type": [
+                                                            "object",
+                                                            "null"
+                                                        ],
+                                                        "description": "Última categoria (departamento) para a qual a conversa foi enviada. `null` quando a conversa nunca entrou em fila.",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "color": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "name",
+                                                            "color"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "id",
+                                                    "message_channel",
+                                                    "protocol",
+                                                    "started_at",
+                                                    "ended_at",
+                                                    "category"
+                                                ]
                                             }
                                         },
                                         "first_page_url": {
@@ -6424,6 +6525,7 @@
             },
             "put": {
                 "operationId": "reminders.update",
+                "description": "Atualiza o lembrete. Envie `resolution` junto de `completed_at` para registrar o que foi feito na tarefa; reabrir o lembrete (`completed_at: null`) limpa a resolução.",
                 "summary": "Atualizar lembrete",
                 "tags": [
                     "Lembretes"
@@ -10659,7 +10761,7 @@
             },
             "post": {
                 "operationId": "call-numbers.store",
-                "description": "Vincula um número de voz conforme o provider da conta: verifica o número no provider (Twilio ou Telnyx) e configura o roteamento de chamadas. O campo `direct_to_queue` (exige exatamente um departamento) faz a chamada entrar direto na fila, sem saudação.",
+                "description": "Vincula um número de voz conforme o provider da conta: na Twilio e na Telnyx verifica o número no provider e configura o roteamento de chamadas; no `direct` apenas registra o DID informado (formato E.164). O campo `direct_to_queue` (exige exatamente um departamento) faz a chamada entrar direto na fila, sem saudação. O campo `office_hours_only` faz a chamada fora do expediente do departamento (ou feriado) ir direto ao recado com o aviso de fechado.",
                 "summary": "Vincular número",
                 "tags": [
                     "Números de telefone"
@@ -10895,6 +10997,92 @@
                                     "type": "array",
                                     "items": {
                                         "$ref": "#/components/schemas/TelnyxNumberData"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/call-numbers/audio/{callNumberId}": {
+            "get": {
+                "operationId": "callNumber.audio",
+                "description": "Retorna os clipes de áudio da URA (saudação, menu, voicemail e fechado) do número, com o texto editável, se está customizado, o status de geração e uma URL temporária de pré-escuta. Números Twilio/Telnyx têm apenas o clipe `closed`, falado por síntese em tempo real (sem áudio gerado).",
+                "summary": "Listar áudios da URA",
+                "tags": [
+                    "Números de telefone"
+                ],
+                "parameters": [
+                    {
+                        "name": "callNumberId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/CallAudioClipData"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "operationId": "callNumber.updateAudio",
+                "description": "Reescreve os textos da URA do número (`welcome`, `menu`, `voicemail`, `closed`); os textos enviados são marcados como customizados e, em números direct, reenfileiram a geração do áudio pela síntese de voz. Retorna os clipes atualizados.",
+                "summary": "Editar textos da URA",
+                "tags": [
+                    "Números de telefone"
+                ],
+                "parameters": [
+                    {
+                        "name": "callNumberId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateCallNumberAudioRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/CallAudioClipData"
                                     }
                                 }
                             }
@@ -14461,6 +14649,9 @@
                     "category_ids": {
                         "type": "string"
                     },
+                    "bot_user_id": {
+                        "type": "string"
+                    },
                     "voice_enabled": {
                         "type": "boolean"
                     }
@@ -14478,6 +14669,7 @@
                     "profile_image",
                     "is_dark_mode",
                     "category_ids",
+                    "bot_user_id",
                     "voice_enabled"
                 ],
                 "title": "AuthMeResource"
@@ -14636,9 +14828,55 @@
                     },
                     "provider": {
                         "$ref": "#/components/schemas/CallProviderEnum"
+                    },
+                    "sip_host": {
+                        "type": "string"
+                    },
+                    "sip_port": {
+                        "type": "integer"
+                    },
+                    "sip_username": {
+                        "type": "string"
+                    },
+                    "trunk_status": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     }
                 },
                 "title": "CallAccountData"
+            },
+            "CallAudioClipData": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string"
+                    },
+                    "text": {
+                        "type": "string"
+                    },
+                    "is_custom": {
+                        "type": "boolean"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "preview_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "type",
+                    "text",
+                    "is_custom",
+                    "status",
+                    "preview_url"
+                ],
+                "title": "CallAudioClipData"
             },
             "CallChatRelationEnum": {
                 "type": "string",
@@ -14789,6 +15027,9 @@
                     "direct_to_queue": {
                         "type": "boolean"
                     },
+                    "office_hours_only": {
+                        "type": "boolean"
+                    },
                     "flow_sid": {
                         "type": "string"
                     },
@@ -14802,7 +15043,8 @@
                 "type": "string",
                 "enum": [
                     "twilio",
-                    "telnyx"
+                    "telnyx",
+                    "direct"
                 ],
                 "title": "CallProviderEnum"
             },
@@ -15015,168 +15257,6 @@
                     }
                 },
                 "title": "CategoryWeeklyOfficeHourData"
-            },
-            "Chat": {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "string"
-                    },
-                    "tenant_id": {
-                        "type": "string"
-                    },
-                    "user_id": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
-                    },
-                    "customer_id": {
-                        "type": "string"
-                    },
-                    "message_channel": {
-                        "$ref": "#/components/schemas/MessageChannelEnum"
-                    },
-                    "sub_channel_id": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
-                    },
-                    "sub_channel_type": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
-                    },
-                    "protocol": {
-                        "type": "string"
-                    },
-                    "nps": {
-                        "type": [
-                            "integer",
-                            "null"
-                        ]
-                    },
-                    "campaign_id": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
-                    },
-                    "is_unattended_dispatch": {
-                        "type": "boolean"
-                    },
-                    "started_at": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "queued_at": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "date-time"
-                    },
-                    "ended_at": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "date-time"
-                    },
-                    "last_message_id": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
-                    },
-                    "last_message_text": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
-                    },
-                    "last_message_type": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
-                    },
-                    "last_message_from": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
-                    },
-                    "last_message_created_at": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "date-time"
-                    },
-                    "last_message_disable_message": {
-                        "type": "integer"
-                    },
-                    "closed_by_user_id": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
-                    },
-                    "is_archived": {
-                        "type": "boolean"
-                    },
-                    "deleted_at": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "date-time"
-                    },
-                    "customer_initiated": {
-                        "type": [
-                            "boolean",
-                            "null"
-                        ]
-                    },
-                    "recontacted_at": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "date-time"
-                    }
-                },
-                "required": [
-                    "id",
-                    "tenant_id",
-                    "user_id",
-                    "customer_id",
-                    "message_channel",
-                    "sub_channel_id",
-                    "sub_channel_type",
-                    "protocol",
-                    "nps",
-                    "campaign_id",
-                    "is_unattended_dispatch",
-                    "started_at",
-                    "queued_at",
-                    "ended_at",
-                    "last_message_id",
-                    "last_message_text",
-                    "last_message_type",
-                    "last_message_from",
-                    "last_message_created_at",
-                    "last_message_disable_message",
-                    "closed_by_user_id",
-                    "is_archived",
-                    "deleted_at",
-                    "customer_initiated",
-                    "recontacted_at"
-                ],
-                "title": "Chat"
             },
             "ChatData": {
                 "type": "object",
@@ -15546,7 +15626,8 @@
                         "type": "string",
                         "enum": [
                             "twilio",
-                            "telnyx"
+                            "telnyx",
+                            "direct"
                         ]
                     },
                     "account_sid": {
@@ -15585,6 +15666,9 @@
                         "maxLength": 20
                     },
                     "direct_to_queue": {
+                        "type": "boolean"
+                    },
+                    "office_hours_only": {
                         "type": "boolean"
                     },
                     "departments": {
@@ -17183,6 +17267,37 @@
                                     "type": "string",
                                     "pattern": "^[0-9]+$"
                                 },
+                                "identity": {
+                                    "type": "object",
+                                    "properties": {
+                                        "channel": {
+                                            "type": "string",
+                                            "enum": [
+                                                "TELEGRAM",
+                                                "INSTAGRAM",
+                                                "FACEBOOK_MESSENGER",
+                                                "WEBSITE",
+                                                "APP"
+                                            ]
+                                        },
+                                        "source": {
+                                            "type": "string",
+                                            "pattern": "^[A-Z][A-Z0-9_]*$",
+                                            "maxLength": 64
+                                        },
+                                        "external_id": {
+                                            "type": "string",
+                                            "maxLength": 255
+                                        }
+                                    }
+                                },
+                                "customer_name": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 255
+                                },
                                 "started_at": {
                                     "type": [
                                         "string",
@@ -17627,6 +17742,12 @@
                         "type": "string"
                     },
                     "voice": {
+                        "type": "string"
+                    },
+                    "filename": {
+                        "type": "string"
+                    },
+                    "mime_type": {
                         "type": "string"
                     },
                     "transcribed_text": {
@@ -18398,6 +18519,12 @@
                         ],
                         "format": "date-time"
                     },
+                    "resolution": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "created_at": {
                         "type": "string",
                         "format": "date-time"
@@ -18427,6 +18554,9 @@
                     "completed_at": {
                         "type": "string"
                     },
+                    "resolution": {
+                        "type": "string"
+                    },
                     "user": {
                         "$ref": "#/components/schemas/UserResource"
                     },
@@ -18446,6 +18576,7 @@
                     "description",
                     "due_date",
                     "completed_at",
+                    "resolution",
                     "user",
                     "customer",
                     "created_at"
@@ -19656,6 +19787,28 @@
                 ],
                 "title": "UpdateCallAccountRequest"
             },
+            "UpdateCallNumberAudioRequest": {
+                "type": "object",
+                "properties": {
+                    "welcome": {
+                        "type": "string",
+                        "maxLength": 1000
+                    },
+                    "menu": {
+                        "type": "string",
+                        "maxLength": 1000
+                    },
+                    "voicemail": {
+                        "type": "string",
+                        "maxLength": 1000
+                    },
+                    "closed": {
+                        "type": "string",
+                        "maxLength": 1000
+                    }
+                },
+                "title": "UpdateCallNumberAudioRequest"
+            },
             "UpdateCallNumberDirectRequest": {
                 "type": "object",
                 "properties": {
@@ -20287,6 +20440,12 @@
                             "null"
                         ],
                         "format": "date-time"
+                    },
+                    "resolution": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     },
                     "user_id": {
                         "type": "string",
