@@ -131,6 +131,12 @@
                                                     ],
                                                     "format": "date-time"
                                                 },
+                                                "partner": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
                                                 "check_active": {
                                                     "type": "string",
                                                     "enum": [
@@ -157,6 +163,7 @@
                                                 "role_slug",
                                                 "status",
                                                 "tenant_created",
+                                                "partner",
                                                 "check_active",
                                                 "profile_image",
                                                 "is_dark_mode"
@@ -239,6 +246,12 @@
                                             ],
                                             "format": "date-time"
                                         },
+                                        "partner": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
                                         "check_active": {
                                             "type": "string",
                                             "enum": [
@@ -265,6 +278,7 @@
                                         "role_slug",
                                         "status",
                                         "tenant_created",
+                                        "partner",
                                         "check_active",
                                         "profile_image",
                                         "is_dark_mode"
@@ -863,7 +877,7 @@
             },
             "post": {
                 "operationId": "campaign.store",
-                "description": "Cria a campanha e inicia o envio de forma assíncrona, em lotes de clientes com atraso escalonado entre eles.",
+                "description": "Cria a campanha e inicia o envio de forma assíncrona, em lotes de clientes com atraso escalonado entre eles. No tipo `attendant`, `category_id` opcional define o departamento das conversas criadas, que permanecem com o atendente, sem fila.",
                 "summary": "Criar campanha",
                 "tags": [
                     "Campanhas"
@@ -1639,7 +1653,7 @@
         "/website-channel/config/{identifier}": {
             "get": {
                 "operationId": "websiteChannelMessage.config",
-                "description": "Endpoint público, sem token: devolve a configuração do widget para o boot — `name`, `widget_color`, `welcome_message`, `theme` (`light` ou `dark`), `message_preview` (quando preenchida, o widget a exibe como teaser junto à bolha antes de abrir; `null` = sem teaser) e `display_mode` (`floating` = bolha no canto; `fullscreen` = chat em tela cheia, sem bolha, teaser, minimizar ou branding). O `{identifier}` é o id do canal registrado em `POST /website-channel`.\n\nA resposta é cacheável (`Cache-Control` público de 5 minutos) — mudanças de configuração demoram esse tanto para refletir. Identificador inexistente retorna `404`. Limite: 300 requisições/minuto por IP.",
+                "description": "Endpoint público, sem token: devolve a configuração do widget para o boot — `name`, `widget_color`, `welcome_message`, `theme` (`light` ou `dark`), `message_preview` (quando preenchida, o widget a exibe como teaser junto à bolha antes de abrir; `null` = sem teaser), `display_mode` (`floating` = bolha no canto; `fullscreen` = chat em tela cheia, sem bolha, teaser, minimizar ou branding), `pre_chat_form` (política de pré-chat; `null` = sem formulário) e `launcher_image` (URL pública da imagem que preenche a bolha enquanto o chat está fechado; `null` = bolha padrão na cor do canal, com o ícone de balão). O `{identifier}` é o id do canal registrado em `POST /website-channel`.\n\n`launcher_image` é para desenhar com recorte circular, preenchendo a bolha inteira — foto de quem atende, logo ou mascote. Com o chat aberto a imagem sai e volta o ícone de fechar na cor da marca. Campo ausente ou `null` = comportamento de hoje.\n\n`pre_chat_form` é um objeto `{\"fields\": [\"name\", \"email\"]}` — os dados que o visitante precisa ter antes da primeira mensagem, na ordem de exibição, entre `name`, `email`, `phone` e `document`. Exiba o formulário só na primeira conversa (`GET /website-channel/conversations/{identifier}` vazio) e só para os campos que o site ainda não declarou via `Pipeelo(\"setUser\", …)`; o que o visitante digitar vai no bloco `user` do envio de mensagem. Leitor tolerante: campo ausente, `null` ou `fields` vazio = sem formulário, e valores desconhecidos dentro de `fields` devem ser ignorados.\n\nA resposta é cacheável (`Cache-Control` público de 5 minutos) — mudanças de configuração demoram esse tanto para refletir. Identificador inexistente retorna `404`. Limite: 300 requisições/minuto por IP.",
                 "summary": "Config do widget (público)",
                 "tags": [
                     "Canal do Site"
@@ -1696,6 +1710,32 @@
                                                 "floating",
                                                 "fullscreen"
                                             ]
+                                        },
+                                        "pre_chat_form": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "properties": {
+                                                "fields": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "name",
+                                                            "email",
+                                                            "phone",
+                                                            "document"
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "launcher_image": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
                                         }
                                     }
                                 }
@@ -1735,7 +1775,7 @@
             },
             "post": {
                 "operationId": "website-channel.store",
-                "description": "Registra um site do tenant como canal de atendimento via widget. O `id` retornado é o identificador público de embed: ele vai no snippet colado no site (não é segredo) e identifica o canal nos endpoints públicos e no canal de websocket.\n\n`category_id` define a fila para onde as conversas vão no atendimento humano e `assistant_id` o agente de IA que atende primeiro; sem eles, vale a distribuição padrão da conta.\n\n`widget_color`, `welcome_message`, `theme` (`light` ou `dark`, padrão `light`), `message_preview` e `display_mode` compõem a configuração do widget, devolvida pelo endpoint público de config. `message_preview`, quando preenchida, aparece como teaser junto à bolha antes de o visitante abrir o widget. `display_mode` (`floating` ou `fullscreen`, padrão `floating`) define a apresentação: `floating` é a bolha no canto do site; `fullscreen` ocupa a tela toda para embutir o chat como app — sem bolha, sem teaser, sem minimizar e sem o branding da plataforma.\n\n`snippet_user_fields` é a lista de dados do cliente que o snippet deve declarar via `Pipeelo(\"setUser\", …)` — qualquer subconjunto de `name`, `email`, `phone` e `document`, ou `null` para nenhum. Serve ao painel para montar o código de embed: não entra na configuração pública do widget nem altera o comportamento do canal.",
+                "description": "Registra um site do tenant como canal de atendimento via widget. O `id` retornado é o identificador público de embed: ele vai no snippet colado no site (não é segredo) e identifica o canal nos endpoints públicos e no canal de websocket.\n\n`category_id` define a fila para onde as conversas vão no atendimento humano e `assistant_id` o agente de IA que atende primeiro; sem eles, vale a distribuição padrão da conta.\n\n`widget_color`, `welcome_message`, `theme` (`light` ou `dark`, padrão `light`), `message_preview` e `display_mode` compõem a configuração do widget, devolvida pelo endpoint público de config. `message_preview`, quando preenchida, aparece como teaser junto à bolha antes de o visitante abrir o widget. `display_mode` (`floating` ou `fullscreen`, padrão `floating`) define a apresentação: `floating` é a bolha no canto do site; `fullscreen` ocupa a tela toda para embutir o chat como app — sem bolha, sem teaser, sem minimizar e sem o branding da plataforma.\n\n`snippet_user_fields` é a lista de dados do cliente que o snippet deve declarar via `Pipeelo(\"setUser\", …)` — qualquer subconjunto de `name`, `email`, `phone` e `document`, ou `null` para nenhum. Serve ao painel para montar o código de embed: não entra na configuração pública do widget nem altera o comportamento do canal.\n\n`pre_chat_form` é a política de pré-chat: quais dados o visitante precisa ter antes da primeira mensagem. Objeto `{\"fields\": [\"name\", \"email\"]}`, com `fields` sendo um subconjunto não vazio e sem repetição de `name`, `email`, `phone` e `document` — a ordem gravada é a ordem de exibição no formulário. `null` (padrão) desliga o pré-chat. Diferente do `snippet_user_fields`, este campo vai para a configuração pública do widget: o formulário só aparece quando o site não declarou os dados via `Pipeelo(\"setUser\", …)`. O que o visitante digita chega pelo bloco `user` do envio de mensagem, como qualquer outro dado declarado.\n\nA imagem da bolha (`launcher_image`) não é aceita aqui: ela tem endpoint próprio, `POST /website-channel/launcher-image/{id}`, porque a URL é sempre produzida pela plataforma a partir de um upload.",
                 "summary": "Registrar canal do site",
                 "tags": [
                     "Canal do Site"
@@ -1773,7 +1813,7 @@
         "/website-channel/{id}": {
             "put": {
                 "operationId": "website-channel.update",
-                "description": "Atualiza o nome, a categoria, o assistente de IA, a cor, o tema, a mensagem de boas-vindas, o teaser (`message_preview`), o modo de exibição (`display_mode`) e os campos de identificação do snippet (`snippet_user_fields`) do widget. Mudanças de config podem levar alguns minutos para refletir no widget, por causa do cache do endpoint público.",
+                "description": "Atualiza o nome, a categoria, o assistente de IA, a cor, o tema, a mensagem de boas-vindas, o teaser (`message_preview`), o modo de exibição (`display_mode`), os campos de identificação do snippet (`snippet_user_fields`) e a política de pré-chat (`pre_chat_form`) do widget. Campo ausente é preservado; `pre_chat_form` como `null` desliga o pré-chat. A imagem da bolha (`launcher_image`) é ignorada aqui — use `POST /website-channel/launcher-image/{id}` e `DELETE /website-channel/launcher-image/{id}`. Mudanças de config podem levar alguns minutos para refletir no widget, por causa do cache do endpoint público.",
                 "summary": "Atualizar canal do site",
                 "tags": [
                     "Canal do Site"
@@ -1839,6 +1879,87 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/website-channel/launcher-image/{id}": {
+            "post": {
+                "operationId": "websiteChannel.uploadLauncherImage",
+                "description": "Envia (multipart) a imagem que preenche a bolha do widget enquanto o chat está fechado — foto de quem atende, logo da loja ou mascote. Campo `launcher_image`: PNG, JPG, JPEG ou WebP, até 200 KB. O recorte é circular, então envie um quadrado (o painel corta em 256×256). SVG não é aceito.\n\nA imagem anterior do canal é apagada do armazenamento. Retorna o canal com a URL pública em `launcher_image`, que passa a sair também no endpoint público de config — mudanças levam alguns minutos para refletir no site, por causa do cache dessa rota.",
+                "summary": "Definir imagem da bolha do widget",
+                "tags": [
+                    "Canal do Site"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UploadWebsiteChannelLauncherImageRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WebsiteChannelData"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "websiteChannel.destroyLauncherImage",
+                "description": "Remove a imagem da bolha do canal e a apaga do armazenamento. O widget volta a desenhar a bolha padrão na cor do canal, com o ícone de balão. Retorna o canal já sem `launcher_image`.",
+                "summary": "Remover imagem da bolha do widget",
+                "tags": [
+                    "Canal do Site"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WebsiteChannelData"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -3127,7 +3248,7 @@
                     {
                         "name": "category_id",
                         "in": "query",
-                        "description": "Conversas com ação na categoria.",
+                        "description": "Conversas cujo último departamento é a categoria informada.",
                         "schema": {
                             "type": "string"
                         }
@@ -3135,7 +3256,7 @@
                     {
                         "name": "department_ids",
                         "in": "query",
-                        "description": "Departamentos (categorias), separados por vírgula: conversas na fila do departamento, de usuários vinculados a ele ou do usuário bot. Para gerentes com a restrição de visibilidade ativa, o servidor define o valor.",
+                        "description": "Departamentos (categorias), separados por vírgula: conversas cujo último departamento está na lista, do usuário bot ou do próprio usuário autenticado. Para gerentes com a restrição de visibilidade ativa, o servidor define o valor — inclusive na busca.",
                         "schema": {
                             "type": "string"
                         }
@@ -3414,7 +3535,7 @@
             },
             "post": {
                 "operationId": "chat.store",
-                "description": "Abre uma conversa com um cliente. Informe `customer_id` ou `customer_phone` (o cliente é criado automaticamente se não existir). Com `template_name`, envia um template HSM na abertura — disponível nos canais WhatsApp Official e WhatsApp Cloud (400 nos demais canais).",
+                "description": "Abre uma conversa com um cliente. Informe `customer_id` ou `customer_phone` (o cliente é criado automaticamente se não existir). `category_id` sozinho envia a conversa para a fila do departamento; junto de `user_id`, apenas define o departamento da conversa, que permanece com o usuário. Com `template_name`, envia um template HSM na abertura — disponível nos canais WhatsApp Official e WhatsApp Cloud (400 nos demais canais).",
                 "summary": "Criar conversa",
                 "tags": [
                     "Conversas"
@@ -3532,6 +3653,109 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/chats/messages/delta/{chatId}": {
+            "get": {
+                "operationId": "chats.messages-delta",
+                "description": "Retorna as mensagens da conversa posteriores à última mensagem conhecida, no mesmo formato dos itens de `data` de `GET /chats/{chatId}`. Serve para recuperar o que entrou na janela entre a leitura da conversa e a ativação do canal de tempo real. Informe `since` e `since_id` juntos: como `created_at` tem precisão de segundo, o `id` desempata as mensagens do mesmo segundo e garante que nada volte repetido nem se perca. Devolve no máximo 50 mensagens em ordem crescente; ao receber 50, recarregue a conversa pelo fluxo normal.",
+                "summary": "Consultar mensagens novas da conversa",
+                "tags": [
+                    "Conversas"
+                ],
+                "parameters": [
+                    {
+                        "name": "chatId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "since",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    },
+                    {
+                        "name": "since_id",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "description": "Mensagens em ordem crescente de `created_at`.",
+                                            "items": {
+                                                "type": "object",
+                                                "description": "Mesmo objeto dos itens de `data` em `GET /chats/{chatId}`. As demais chaves variam conforme o `type` da mensagem (`text`, `image`, `audio`, `template`, `location`, `contacts`, `reaction`, `interactive`, `order_details`) e as nulas são omitidas.",
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string"
+                                                    },
+                                                    "type": {
+                                                        "type": "string"
+                                                    },
+                                                    "from": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "USER",
+                                                            "CUSTOMER"
+                                                        ]
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "resource_type": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "MESSAGE",
+                                                            "ERROR"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "id",
+                                                    "type",
+                                                    "created_at",
+                                                    "resource_type"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -3671,7 +3895,7 @@
                     {
                         "name": "category_id",
                         "in": "query",
-                        "description": "Conversas com ação na categoria.",
+                        "description": "Conversas cujo último departamento é a categoria informada.",
                         "schema": {
                             "type": "string"
                         }
@@ -3679,7 +3903,7 @@
                     {
                         "name": "department_ids",
                         "in": "query",
-                        "description": "Departamentos (categorias), separados por vírgula: conversas na fila do departamento, de usuários vinculados a ele ou do usuário bot. Para gerentes com a restrição de visibilidade ativa, o servidor define o valor.",
+                        "description": "Departamentos (categorias), separados por vírgula: conversas cujo último departamento está na lista, do usuário bot ou do próprio usuário autenticado. Para gerentes com a restrição de visibilidade ativa, o servidor define o valor — inclusive na busca.",
                         "schema": {
                             "type": "string"
                         }
@@ -11806,6 +12030,14 @@
                         }
                     },
                     {
+                        "name": "only_my_departments",
+                        "in": "query",
+                        "description": "Use `1` para retornar apenas usuários que compartilham ao menos um departamento com o usuário autenticado. O próprio usuário e o bot sempre são incluídos.",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
                         "name": "filters",
                         "in": "query",
                         "description": "Filtros especiais, separados por vírgula: `exclude_default_users`, `exclude_default_users_minus_bot`, `exclude_support_user`, `serve_customer`, `exclude_deactivated_and_on_vacation`.",
@@ -14637,6 +14869,9 @@
                     "tenant_created": {
                         "type": "string"
                     },
+                    "partner": {
+                        "type": "string"
+                    },
                     "check_active": {
                         "type": "string"
                     },
@@ -14652,6 +14887,9 @@
                     "bot_user_id": {
                         "type": "string"
                     },
+                    "can_access_ai_chats": {
+                        "type": "string"
+                    },
                     "voice_enabled": {
                         "type": "boolean"
                     }
@@ -14665,11 +14903,13 @@
                     "status",
                     "status_started_at",
                     "tenant_created",
+                    "partner",
                     "check_active",
                     "profile_image",
                     "is_dark_mode",
                     "category_ids",
                     "bot_user_id",
+                    "can_access_ai_chats",
                     "voice_enabled"
                 ],
                 "title": "AuthMeResource"
@@ -15298,6 +15538,9 @@
                         "type": "integer"
                     },
                     "campaignId": {
+                        "type": "string"
+                    },
+                    "category_id": {
                         "type": "string"
                     },
                     "started_at": {
@@ -16646,6 +16889,9 @@
                             "required",
                             "not_required"
                         ]
+                    },
+                    "can_access_ai_chats": {
+                        "type": "boolean"
                     },
                     "categories": {
                         "type": "object"
@@ -18460,6 +18706,24 @@
                                 "phone",
                                 "document"
                             ]
+                        }
+                    },
+                    "pre_chat_form": {
+                        "type": "object",
+                        "properties": {
+                            "fields": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string",
+                                    "enum": [
+                                        "name",
+                                        "email",
+                                        "phone",
+                                        "document"
+                                    ]
+                                },
+                                "minItems": 1
+                            }
                         }
                     }
                 },
@@ -20594,6 +20858,9 @@
                             "not_required"
                         ]
                     },
+                    "can_access_ai_chats": {
+                        "type": "boolean"
+                    },
                     "is_dark_mode": {
                         "type": "boolean"
                     },
@@ -20703,6 +20970,24 @@
                                 "document"
                             ]
                         }
+                    },
+                    "pre_chat_form": {
+                        "type": "object",
+                        "properties": {
+                            "fields": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string",
+                                    "enum": [
+                                        "name",
+                                        "email",
+                                        "phone",
+                                        "document"
+                                    ]
+                                },
+                                "minItems": 1
+                            }
+                        }
                     }
                 },
                 "title": "UpdateWebsiteChannelRequest"
@@ -20766,6 +21051,21 @@
                     }
                 },
                 "title": "UpdateWhatsappCloudRequest"
+            },
+            "UploadWebsiteChannelLauncherImageRequest": {
+                "type": "object",
+                "properties": {
+                    "launcher_image": {
+                        "type": "string",
+                        "format": "binary",
+                        "contentMediaType": "application/octet-stream",
+                        "maxLength": 200
+                    }
+                },
+                "required": [
+                    "launcher_image"
+                ],
+                "title": "UploadWebsiteChannelLauncherImageRequest"
             },
             "UserData": {
                 "type": "object",
@@ -20942,6 +21242,9 @@
                     },
                     "online_requirement": {
                         "type": "string"
+                    },
+                    "can_access_ai_chats": {
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -20963,7 +21266,8 @@
                     "profile_image",
                     "max_chats_in_progress",
                     "max_archived_chats",
-                    "online_requirement"
+                    "online_requirement",
+                    "can_access_ai_chats"
                 ],
                 "title": "UserResource"
             },
@@ -21114,6 +21418,15 @@
                         "items": {
                             "type": "string"
                         }
+                    },
+                    "pre_chat_form": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "launcher_image": {
+                        "type": "string"
                     }
                 },
                 "title": "WebsiteChannelData"
