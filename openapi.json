@@ -2027,7 +2027,7 @@
             },
             "post": {
                 "operationId": "categories.store",
-                "description": "Cria uma categoria (fila de atendimento). `reassign_after_minutes` liga a reatribuição automática do chat quando o atendente fica sem responder; `reassign_to_fallback` envia o chat para `fallback_category_id` em vez da própria fila e exige esse campo preenchido; `reassign_business_hours_only` restringe a reatribuição ao horário de atendimento da categoria.",
+                "description": "Cria uma categoria (fila de atendimento). `reassign_after_minutes` liga a reatribuição automática do chat quando o atendente fica sem responder; `reassign_to_fallback` envia o chat para `fallback_category_id` em vez da própria fila e exige esse campo preenchido; `reassign_business_hours_only` restringe a reatribuição ao horário de atendimento da categoria; `reassign_offline_only` restringe a reatribuição a quando o atendente está offline.",
                 "summary": "Criar categoria",
                 "tags": [
                     "Categorias"
@@ -2116,7 +2116,7 @@
             },
             "put": {
                 "operationId": "categories.update",
-                "description": "Atualiza a categoria; campos omitidos permanecem inalterados. Os campos `reassign_after_minutes`, `reassign_to_fallback` e `reassign_business_hours_only` controlam a reatribuição automática por falta de resposta do atendente.",
+                "description": "Atualiza a categoria; campos omitidos permanecem inalterados. Os campos `reassign_after_minutes`, `reassign_to_fallback`, `reassign_business_hours_only` e `reassign_offline_only` controlam a reatribuição automática por falta de resposta do atendente.",
                 "summary": "Atualizar categoria",
                 "tags": [
                     "Categorias"
@@ -3192,7 +3192,7 @@
                     {
                         "name": "filters",
                         "in": "query",
-                        "description": "Estados da conversa, separados por vírgula: `opened`, `closed`, `pending`, `queue`, `has_customer_message`.",
+                        "description": "Estados da conversa, separados por vírgula: `opened`, `closed`, `pending`, `queue`, `has_customer_message`. O `pending` só é aceito junto de `opened` (`opened,pending`); sozinho, retorna 422.",
                         "schema": {
                             "type": "string"
                         }
@@ -3839,7 +3839,7 @@
                     {
                         "name": "filters",
                         "in": "query",
-                        "description": "Estados da conversa, separados por vírgula: `opened`, `closed`, `pending`, `queue`, `has_customer_message`.",
+                        "description": "Estados da conversa, separados por vírgula: `opened`, `closed`, `pending`, `queue`, `has_customer_message`. O `pending` só é aceito junto de `opened` (`opened,pending`); sozinho, retorna 422.",
                         "schema": {
                             "type": "string"
                         }
@@ -7695,6 +7695,172 @@
                 }
             }
         },
+        "/monitoring/overview": {
+            "get": {
+                "operationId": "monitoring.overview",
+                "description": "Retorna os contadores atuais de conversas abertas: total, em atendimento pela IA, em atendimento humano e aguardando na fila.",
+                "summary": "Consultar painel em tempo real",
+                "tags": [
+                    "Monitoramento"
+                ],
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "total": {
+                                            "type": "integer",
+                                            "description": "Conversas abertas."
+                                        },
+                                        "bot": {
+                                            "type": "integer",
+                                            "description": "Conversas com o agente de IA."
+                                        },
+                                        "human": {
+                                            "type": "integer",
+                                            "description": "Conversas com atendentes."
+                                        },
+                                        "queue": {
+                                            "type": "integer",
+                                            "description": "Conversas na fila."
+                                        }
+                                    },
+                                    "required": [
+                                        "total",
+                                        "bot",
+                                        "human",
+                                        "queue"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/monitoring/users-open-chats": {
+            "get": {
+                "operationId": "monitoring.users-open-chats",
+                "description": "Retorna os atendentes que têm conversas abertas no momento, com o status atual, a quantidade de conversas e os departamentos do atendente. O agente de IA não entra na lista.",
+                "summary": "Consultar atendentes com conversas abertas",
+                "tags": [
+                    "Monitoramento"
+                ],
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "user_id": {
+                                                "type": "string"
+                                            },
+                                            "name": {
+                                                "type": "string"
+                                            },
+                                            "status": {
+                                                "type": "string",
+                                                "description": "Status atual do atendente.",
+                                                "enum": [
+                                                    "active",
+                                                    "active_all",
+                                                    "paused",
+                                                    "deactivated",
+                                                    "on_vacation",
+                                                    "offline"
+                                                ]
+                                            },
+                                            "open_chats_count": {
+                                                "type": "integer",
+                                                "description": "Conversas abertas com o atendente."
+                                            },
+                                            "categories": {
+                                                "type": "array",
+                                                "description": "Nomes dos departamentos do atendente.",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        },
+                                        "required": [
+                                            "user_id",
+                                            "name",
+                                            "status",
+                                            "open_chats_count",
+                                            "categories"
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/monitoring/queue-stats-by-category": {
+            "get": {
+                "operationId": "monitoring.queue-stats-by-category",
+                "description": "Retorna, por departamento, quantas conversas estão na fila e o tempo médio de espera (em segundos) das conversas que entraram na fila hoje. A lista vem ordenada da maior para a menor fila.",
+                "summary": "Consultar filas por departamento",
+                "tags": [
+                    "Monitoramento"
+                ],
+                "responses": {
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "category_id": {
+                                                "type": "string"
+                                            },
+                                            "category_name": {
+                                                "type": "string",
+                                                "description": "Nome do departamento; `Sem categoria` quando o departamento não existe mais."
+                                            },
+                                            "count": {
+                                                "type": "integer",
+                                                "description": "Conversas na fila."
+                                            },
+                                            "average_wait_time": {
+                                                "type": "integer",
+                                                "description": "Espera média das conversas que entraram na fila hoje, em segundos; `0` quando não há nenhuma."
+                                            }
+                                        },
+                                        "required": [
+                                            "category_id",
+                                            "category_name",
+                                            "count",
+                                            "average_wait_time"
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/chats/reason": {
             "get": {
                 "operationId": "reason.index",
@@ -10778,7 +10944,7 @@
         "/notifier/retry/{notifierId}": {
             "post": {
                 "operationId": "notifier.retry",
-                "description": "Reexecuta a busca de um notificador do motor interno habilitado (outros retornam 422), com `days_offset` opcional substituindo o configurado. Ao fim da busca, todas as pendências do notificador são enviadas imediatamente, respeitando `dispatch_days`; pendências já existentes para o mesmo telefone não são substituídas. Limite de 2 reprocessamentos por dia por notificador (429).",
+                "description": "Reexecuta a busca de um notificador do motor interno habilitado (outros retornam 422), com `days_offset` opcional substituindo o configurado. Ao fim da busca, todas as pendências do notificador são enviadas imediatamente, respeitando `dispatch_days`; pendências já existentes para o mesmo telefone não são substituídas. Limite de 2 reprocessamentos por dia por notificador (400).",
                 "summary": "Reprocessar busca do notificador",
                 "tags": [
                     "Notificadores"
@@ -15421,6 +15587,9 @@
                     "reassign_business_hours_only": {
                         "type": "string"
                     },
+                    "reassign_offline_only": {
+                        "type": "string"
+                    },
                     "distribution_type": {
                         "type": "string"
                     },
@@ -15440,6 +15609,7 @@
                     "reassign_after_minutes",
                     "reassign_to_fallback",
                     "reassign_business_hours_only",
+                    "reassign_offline_only",
                     "distribution_type",
                     "fallback_category_id"
                 ],
@@ -16077,6 +16247,12 @@
                         ]
                     },
                     "reassign_business_hours_only": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "reassign_offline_only": {
                         "type": [
                             "boolean",
                             "null"
@@ -20153,6 +20329,12 @@
                             "null"
                         ]
                     },
+                    "reassign_offline_only": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
                     "distribution_type": {
                         "type": [
                             "string",
@@ -22396,6 +22578,10 @@
             "description": "Indicadores de chamadas de voz: volume, resultado e duração."
         },
         {
+            "name": "Monitoramento",
+            "description": "Painel em tempo real: conversas abertas, atendentes e filas."
+        },
+        {
             "name": "Exportações",
             "description": "Exportação de relatórios em CSV, JSON ou XLSX."
         },
@@ -22507,6 +22693,7 @@
                 "Métricas de conversas",
                 "Métricas de clientes",
                 "Métricas de chamadas",
+                "Monitoramento",
                 "Exportações"
             ]
         },
