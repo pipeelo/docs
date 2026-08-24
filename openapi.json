@@ -3,7 +3,7 @@
     "info": {
         "title": "Pipeelo",
         "version": "1.0.0",
-        "description": "<img src=\"./assets/logo.png\" alt=\"Pipeelo\" width=\"220\" />\n\nA API da Pipeelo permite integrar a plataforma de atendimento e comunicação multicanal ao seu sistema: gerencie conversas, envie mensagens, cadastre clientes, dispare campanhas e receba eventos em tempo real via webhooks.\n\n## Base URL\n\n| Ambiente | URL |\n|---|---|\n| Produção | `https://api.pipeelo.com/v1` |\n\nTodas as requisições devem usar HTTPS e enviar o cabeçalho `Accept: application/json`.\n\n## Conceitos\n\nOs nomes usados nesta documentação têm significado preciso na Pipeelo:\n\n| Conceito | O que é |\n|---|---|\n| **Conversa** | Sessão de atendimento com um cliente em um canal. Tem protocolo único e passa por estados: aberta, pendente, em fila, encerrada e arquivada. |\n| **Cliente** | Contato atendido pela sua operação, identificado principalmente pelo telefone. Organizável com etiquetas. |\n| **Mensagem** | Item dentro de uma conversa: texto, imagem, vídeo, áudio, documento ou nota interna (visível só para a equipe). |\n| **Canal** | Meio de comunicação da conversa: WhatsApp Official, Facebook Messenger, Instagram, voz ou canal in-app (chat dentro do seu próprio aplicativo). Um tenant pode ter várias contas conectadas por canal (subcanais). |\n| **Usuário** | Membro da sua equipe (atendente), com papel e categorias atribuídas. |\n| **Categoria** | Fila ou departamento de atendimento. Conversas são roteadas para categorias, que têm horários de atendimento próprios. |\n| **Template** | Modelo de mensagem aprovado pela Meta (HSM), obrigatório para iniciar conversas no WhatsApp fora da janela de 24 horas. |\n| **Campanha** | Envio em massa de uma mensagem para um conjunto de clientes. |\n| **Notificador** | Integração de envio transacional de templates, acionada pelo seu sistema (ex.: confirmação de pedido, lembrete de pagamento). |\n| **Mensagem rápida** | Resposta pronta reutilizável pelos atendentes durante o atendimento. |\n| **Mensagem automática** | Mensagem disparada automaticamente por eventos da conversa (ex.: fora do horário de atendimento). |\n| **Motivo de encerramento** | Classificação atribuída à conversa no momento do encerramento, usada em relatórios. |\n| **Lembrete** | Tarefa com data vinculada a um cliente e a um usuário. |\n| **Etiqueta** | Rótulo aplicado a clientes para organização e segmentação. |\n| **Webhook** | Notificação HTTP que a Pipeelo envia ao seu sistema quando eventos acontecem: `chat_started`, `chat_closed`, `chat_transferred`, `custom_event` e `lead_from_meta_ad`. |\n\n## Autenticação\n\nA API usa tokens Bearer. Para obter um token:\n\n1. Autentique-se com `POST /auth/login` usando e-mail e senha — o token retornado expira em 24 horas.\n2. Para integrações de longa duração, gere um token permanente com `POST /permanent-token` (autenticado).\n\nEnvie o token em todas as requisições:\n\n```\nAuthorization: Bearer {seu-token}\n```\n\nEndpoints marcados como públicos (como o próprio login) não exigem token.\n\n## Canal In-App\n\nTransforme o seu próprio aplicativo em um canal de atendimento: o app fala direto com a Pipeelo — sem servidor intermediário — e a conversa passa pelo fluxo normal da sua operação, com IA, filas e atendentes.\n\n**Como integrar:**\n\n1. **Registre um canal** com `POST /app-channel` (autenticado). O `id` retornado é o identificador público do canal: ele vai dentro do app e não é segredo. O token da API **nunca** deve ir no app.\n2. **Identifique o usuário pelo `external_id`** — o id que ele já tem no seu sistema. No primeiro contato a Pipeelo cria o cliente automaticamente (envie `name`, `phone` e `email` opcionais para preencher o cadastro); nas próximas mensagens, o mesmo `external_id` é a mesma pessoa. Use um valor opaco (como um uuid), nunca sequencial.\n3. **Envie mensagens** com `POST /app-channel/message/{identifier}` (público, sem token): texto ou um arquivo por vez. Texto pode ir como `application/json`; arquivo exige `multipart/form-data`.\n4. **Receba as respostas em tempo real** conectando no websocket da Pipeelo (protocolo Pusher):\n\n```js\nconst pusher = new Pusher('KEY_DO_WEBSOCKET', {\n    wsHost: 'soketi.pipeelo.com',\n    wssPort: 443,\n    forceTLS: true,\n    enabledTransports: ['ws', 'wss'],\n    cluster: 'mt1',\n});\n\npusher\n    .subscribe(`app-channel.${identifier}.${externalId}`)\n    .bind('app-channel.message', (mensagem) => {\n        // renderize a mensagem na conversa\n    });\n```\n\n5. **Carregue o histórico** com `GET /app-channel/history/{identifier}?external_id=...` ao abrir o app — a linha do tempo completa da conversa, paginada por cursor.\n\n**A conversa é contínua.** Para o usuário do app não existe atendimento \"aberto\" ou \"encerrado\": ele sempre envia pela mesma rota, sempre recebe no mesmo canal de socket e o histórico devolve a linha do tempo inteira. Internamente, cada atendimento abre e encerra conversas normais na sua operação — com protocolo, fila e relatórios — sem o usuário perceber.\n\n**Formato da mensagem** — o mesmo no socket, no histórico e no webhook:\n\n```json\n{\n    \"message_id\": \"uuid\",\n    \"chat_id\": \"uuid\",\n    \"external_id\": \"id do usuário no seu app\",\n    \"type\": \"text\",\n    \"text\": \"Olá!\",\n    \"media_url\": null,\n    \"from\": \"customer\",\n    \"created_at\": \"2026-07-06T20:11:42-03:00\"\n}\n```\n\n- `type`: `text`, `image`, `audio`, `video` ou `document`.\n- `from`: `customer` é o usuário do app; `company` é a resposta da IA ou de um atendente.\n- `media_url`: link temporário do arquivo, válido por 1 hora — se expirar, recarregue o histórico para receber um link novo.\n- O socket entrega os dois lados da conversa, incluindo o eco das mensagens do próprio app: deduplique pelo `message_id`, que também é retornado no envio, e ordene pela `created_at`.\n\n**Arquivos.** Imagem JPEG/PNG até 50 MB; áudio (AAC, MP3, MP4, OGG, WAV, WebM e outros) até 30 MB; vídeo MP4/3GP até 100 MB; documento (PDF, Word, Excel, PowerPoint, CSV, TXT, ZIP e outros) até 50 MB. Os formatos aceitos estão detalhados no endpoint de envio.\n\n**Reconexão.** O socket não reenvia mensagens perdidas: ao abrir o app ou reconectar depois de um período offline, recarregue o histórico e siga acompanhando pelo socket a partir dali.\n\n**Backend opcional (webhook).** Configure `webhook_url` no canal e a Pipeelo envia um POST ao seu servidor com cada mensagem da conversa, dos dois lados, no mesmo formato acima. Serve para disparar push notification quando o app está fechado e para espelhar a conversa no seu sistema. Sem webhook, o usuário vê as respostas ao reabrir o app, pelo histórico. Do lado do seu servidor: responda 2xx rápido e processe depois — sem resposta em 10 segundos, ou com status de erro, a Pipeelo tenta de novo até 3 vezes. A entrega é pelo menos uma vez e sem garantia de ordem: deduplique pelo `message_id` e ordene pela `created_at`.\n\n**Limites.** Os endpoints públicos aceitam até 30 requisições por minuto por usuário (`identifier` + `external_id`) e 120 por minuto por IP. Acima disso a resposta é `429` — aguarde e tente novamente.\n\n## Paginação\n\nEndpoints de listagem retornam resultados paginados no formato padrão do Laravel:\n\n```json\n{\n  \"current_page\": 1,\n  \"data\": [],\n  \"per_page\": 15,\n  \"total\": 42,\n  \"last_page\": 3\n}\n```\n\nControle a paginação com os parâmetros de query `page` e `per_page`.\n\n## Erros\n\nA API usa códigos HTTP convencionais:\n\n| Código | Significado |\n|---|---|\n| `401` | Token ausente, inválido ou expirado |\n| `403` | Sem permissão para o recurso |\n| `404` | Recurso não encontrado |\n| `422` | Erro de validação — o corpo traz `message` e `errors` por campo |\n| `429` | Limite de requisições excedido |\n\nExemplo de erro de validação:\n\n```json\n{\n  \"message\": \"O nome é obrigatório.\",\n  \"errors\": {\n    \"name\": [\"O nome é obrigatório.\"]\n  }\n}\n```\n\n## Limites de requisição\n\nAs requisições são limitadas por tenant. Ao exceder o limite, a API responde `429 Too Many Requests` — aguarde e tente novamente com backoff exponencial.\n"
+        "description": "<img src=\"./assets/logo.png\" alt=\"Pipeelo\" width=\"220\" />\n\nA API da Pipeelo permite integrar a plataforma de atendimento e comunicação multicanal ao seu sistema: gerencie conversas, envie mensagens, cadastre clientes, dispare campanhas e receba eventos em tempo real via webhooks e WebSocket.\n\n## Base URL\n\n| Ambiente | URL |\n|---|---|\n| Produção | `https://api.pipeelo.com/v1` |\n\nTodas as requisições devem usar HTTPS e enviar o cabeçalho `Accept: application/json`.\n\n## Conceitos\n\nOs nomes usados nesta documentação têm significado preciso na Pipeelo:\n\n| Conceito | O que é |\n|---|---|\n| **Conversa** | Sessão de atendimento com um cliente em um canal. Tem protocolo único e passa por estados: aberta, pendente, em fila, encerrada e arquivada. |\n| **Cliente** | Contato atendido pela sua operação, identificado principalmente pelo telefone. Organizável com etiquetas. |\n| **Mensagem** | Item dentro de uma conversa: texto, imagem, vídeo, áudio, documento ou nota interna (visível só para a equipe). |\n| **Canal** | Meio de comunicação da conversa: WhatsApp Official, Facebook Messenger, Instagram, voz ou canal in-app (chat dentro do seu próprio aplicativo). Um tenant pode ter várias contas conectadas por canal (subcanais). |\n| **Usuário** | Membro da sua equipe (atendente), com papel e categorias atribuídas. |\n| **Categoria** | Fila ou departamento de atendimento. Conversas são roteadas para categorias, que têm horários de atendimento próprios. |\n| **Template** | Modelo de mensagem aprovado pela Meta (HSM), obrigatório para iniciar conversas no WhatsApp fora da janela de 24 horas. |\n| **Campanha** | Envio em massa de uma mensagem para um conjunto de clientes. |\n| **Notificador** | Integração de envio transacional de templates, acionada pelo seu sistema (ex.: confirmação de pedido, lembrete de pagamento). |\n| **Mensagem rápida** | Resposta pronta reutilizável pelos atendentes durante o atendimento. |\n| **Mensagem automática** | Mensagem disparada automaticamente por eventos da conversa (ex.: fora do horário de atendimento). |\n| **Motivo de encerramento** | Classificação atribuída à conversa no momento do encerramento, usada em relatórios. |\n| **Lembrete** | Tarefa com data vinculada a um cliente e a um usuário. |\n| **Etiqueta** | Rótulo aplicado a clientes para organização e segmentação. |\n| **Webhook** | Notificação HTTP que a Pipeelo envia ao seu sistema quando eventos acontecem: `chat_started`, `chat_closed`, `chat_transferred`, `custom_event` e `lead_from_meta_ad`. |\n| **WebSocket** | Canal de eventos em tempo real (protocolo Pusher) para atualizar interfaces: novas mensagens, conversas, status de entrega e presença da equipe. |\n\n## Autenticação\n\nA API usa tokens Bearer. Para obter um token:\n\n1. Autentique-se com `POST /auth/login` usando e-mail e senha — o token retornado expira em 24 horas.\n2. Para integrações de longa duração, gere um token permanente com `POST /permanent-token` (autenticado).\n\nEnvie o token em todas as requisições:\n\n```\nAuthorization: Bearer {seu-token}\n```\n\nEndpoints marcados como públicos (como o próprio login) não exigem token.\n\n## Canal In-App\n\nTransforme o seu próprio aplicativo em um canal de atendimento: o app fala direto com a Pipeelo — sem servidor intermediário — e a conversa passa pelo fluxo normal da sua operação, com IA, filas e atendentes.\n\n**Como integrar:**\n\n1. **Registre um canal** com `POST /app-channel` (autenticado). O `id` retornado é o identificador público do canal: ele vai dentro do app e não é segredo. O token da API **nunca** deve ir no app.\n2. **Identifique o usuário pelo `external_id`** — o id que ele já tem no seu sistema. No primeiro contato a Pipeelo cria o cliente automaticamente (envie `name`, `phone` e `email` opcionais para preencher o cadastro); nas próximas mensagens, o mesmo `external_id` é a mesma pessoa. Use um valor opaco (como um uuid), nunca sequencial.\n3. **Envie mensagens** com `POST /app-channel/message/{identifier}` (público, sem token): texto ou um arquivo por vez. Texto pode ir como `application/json`; arquivo exige `multipart/form-data`.\n4. **Receba as respostas em tempo real** conectando no websocket da Pipeelo (protocolo Pusher) — conexão, canais privados e o catálogo completo de eventos estão na seção **Tempo real (WebSocket)**:\n\n```js\nconst pusher = new Pusher('edf3e8e06df44054379686a760935487', {\n    wsHost: 'soketi.pipeelo.com',\n    wssPort: 443,\n    forceTLS: true,\n    enabledTransports: ['ws', 'wss'],\n    cluster: 'm1',\n});\n\npusher\n    .subscribe(`app-channel.${identifier}.${externalId}`)\n    .bind('app-channel.message', (mensagem) => {\n        // renderize a mensagem na conversa\n    });\n```\n\n5. **Carregue o histórico** com `GET /app-channel/history/{identifier}?external_id=...` ao abrir o app — a linha do tempo completa da conversa, paginada por cursor.\n\n**A conversa é contínua.** Para o usuário do app não existe atendimento \"aberto\" ou \"encerrado\": ele sempre envia pela mesma rota, sempre recebe no mesmo canal de socket e o histórico devolve a linha do tempo inteira. Internamente, cada atendimento abre e encerra conversas normais na sua operação — com protocolo, fila e relatórios — sem o usuário perceber.\n\n**Formato da mensagem** — o mesmo no socket, no histórico e no webhook:\n\n```json\n{\n    \"message_id\": \"uuid\",\n    \"chat_id\": \"uuid\",\n    \"external_id\": \"id do usuário no seu app\",\n    \"type\": \"text\",\n    \"text\": \"Olá!\",\n    \"media_url\": null,\n    \"from\": \"customer\",\n    \"created_at\": \"2026-07-06T20:11:42-03:00\"\n}\n```\n\n- `type`: `text`, `image`, `audio`, `video` ou `document`.\n- `from`: `customer` é o usuário do app; `company` é a resposta da IA ou de um atendente.\n- `media_url`: link temporário do arquivo, válido por 1 hora — se expirar, recarregue o histórico para receber um link novo.\n- O socket entrega os dois lados da conversa, incluindo o eco das mensagens do próprio app: deduplique pelo `message_id`, que também é retornado no envio, e ordene pela `created_at`.\n\n**Arquivos.** Imagem JPEG/PNG até 50 MB; áudio (AAC, MP3, MP4, OGG, WAV, WebM e outros) até 30 MB; vídeo MP4/3GP até 100 MB; documento (PDF, Word, Excel, PowerPoint, CSV, TXT, ZIP e outros) até 50 MB. Os formatos aceitos estão detalhados no endpoint de envio.\n\n**Reconexão.** O socket não reenvia mensagens perdidas: ao abrir o app ou reconectar depois de um período offline, recarregue o histórico e siga acompanhando pelo socket a partir dali.\n\n**Backend opcional (webhook).** Configure `webhook_url` no canal e a Pipeelo envia um POST ao seu servidor com cada mensagem da conversa, dos dois lados, no mesmo formato acima. Serve para disparar push notification quando o app está fechado e para espelhar a conversa no seu sistema. Sem webhook, o usuário vê as respostas ao reabrir o app, pelo histórico. Do lado do seu servidor: responda 2xx rápido e processe depois — sem resposta em 10 segundos, ou com status de erro, a Pipeelo tenta de novo até 3 vezes. A entrega é pelo menos uma vez e sem garantia de ordem: deduplique pelo `message_id` e ordene pela `created_at`.\n\n**Limites.** Os endpoints públicos aceitam até 30 requisições por minuto por usuário (`identifier` + `external_id`) e 120 por minuto por IP. Acima disso a resposta é `429` — aguarde e tente novamente.\n\n## Paginação\n\nEndpoints de listagem retornam resultados paginados no formato padrão do Laravel:\n\n```json\n{\n  \"current_page\": 1,\n  \"data\": [],\n  \"per_page\": 15,\n  \"total\": 42,\n  \"last_page\": 3\n}\n```\n\nControle a paginação com os parâmetros de query `page` e `per_page`.\n\n## Erros\n\nA API usa códigos HTTP convencionais:\n\n| Código | Significado |\n|---|---|\n| `401` | Token ausente, inválido ou expirado |\n| `403` | Sem permissão para o recurso |\n| `404` | Recurso não encontrado |\n| `422` | Erro de validação — o corpo traz `message` e `errors` por campo |\n| `429` | Limite de requisições excedido |\n\nExemplo de erro de validação:\n\n```json\n{\n  \"message\": \"O nome é obrigatório.\",\n  \"errors\": {\n    \"name\": [\"O nome é obrigatório.\"]\n  }\n}\n```\n\n## Limites de requisição\n\nAs requisições são limitadas por tenant. Ao exceder o limite, a API responde `429 Too Many Requests` — aguarde e tente novamente com backoff exponencial.\n\n\n## Tempo real (WebSocket)\n\nA Pipeelo publica eventos em tempo real por WebSocket, no protocolo Pusher. É o mesmo canal que o painel da Pipeelo usa para atualizar a tela: nova mensagem, conversa que entrou na fila, status de entrega, presença da equipe.\n\nEle complementa os webhooks — não substitui:\n\n| | Webhook | WebSocket |\n|---|---|---|\n| Para quê | Integrar sistemas (servidor a servidor) | Atualizar interfaces (painel, app, site) |\n| Entrega | Pelo menos uma vez, com retentativa | Melhor esforço: quem não está conectado não recebe, e nada é reenviado |\n| Eventos | `chat_started`, `chat_closed`, `chat_transferred`, `custom_event`, `lead_from_meta_ad` | Todos os eventos desta seção |\n\nOs identificadores usados nos nomes dos canais vêm da própria API: `GET /auth/me` devolve o `id` do usuário e o `tenant_id`; `GET /chats` devolve os ids das conversas; `POST /app-channel` e `POST /website-channel` devolvem o `identifier` dos canais públicos.\n\n### Conexão\n\n| | |\n|---|---|\n| Host | `soketi.pipeelo.com` |\n| Porta | `443` (TLS obrigatório) |\n| Chave do app | `edf3e8e06df44054379686a760935487` |\n| Protocolo | Pusher — qualquer cliente compatível serve (`pusher-js`, `pusher-websocket-java`, `pusher-websocket-swift`, etc.) |\n\nA chave do app é pública: ela identifica a aplicação, não autentica ninguém. Quem autentica é o token Bearer, usado só na assinatura de canais privados.\n\n```js\nimport Pusher from 'pusher-js';\n\nconst pusher = new Pusher('edf3e8e06df44054379686a760935487', {\n    wsHost: 'soketi.pipeelo.com',\n    wssPort: 443,\n    forceTLS: true,\n    enabledTransports: ['ws', 'wss'],\n    disableStats: true,\n    cluster: 'm1',\n    authEndpoint: 'https://api.pipeelo.com/broadcasting/auth',\n    auth: {\n        headers: {\n            Authorization: 'Bearer {seu-token}',\n            Accept: 'application/json',\n        },\n    },\n});\n\npusher.connection.bind('state_change', ({ previous, current }) => {\n    // 'connecting' | 'connected' | 'unavailable' | 'failed' | 'disconnected'\n});\n\npusher\n    .subscribe(`private-chats.${tenantId}`)\n    .bind('chats-received', (chat) => {\n        // atualize a lista de conversas\n    });\n```\n\n- `cluster` é exigido pela biblioteca e ignorado pelo servidor — qualquer valor funciona.\n- Mantenha **uma conexão por cliente** e assine só os canais que a tela em uso precisa; chame `unsubscribe` ao sair dela.\n- Os canais públicos (`app-channel.*` e `website-channel.*`) não exigem `authEndpoint` nem token.\n\n### Autenticação de canais privados\n\nAo assinar um canal `private-*`, o cliente Pusher chama automaticamente:\n\n```\nPOST https://api.pipeelo.com/broadcasting/auth\nAuthorization: Bearer {seu-token}\nAccept: application/json\n\nsocket_id=1234.5678&channel_name=private-chats.{tenant_id}\n```\n\nAtenção ao endereço: `/broadcasting/auth` fica na raiz da API, **sem** o prefixo `/v1`.\n\n| Resposta | Significado |\n|---|---|\n| `200` `{\"auth\": \"chave:assinatura\"}` | Assinatura liberada. |\n| `401` | Token ausente, inválido ou expirado — ou assinatura da conta bloqueada. |\n| `403` | O canal não pertence ao seu tenant (ou, em `private-user`, não é o seu usuário). |\n\nCada `subscribe` de canal privado gera uma chamada a esse endpoint, que conta no limite de requisições da API. Trate o evento `pusher:subscription_error` no cliente: sem isso, uma assinatura negada é silenciosa — a conexão continua aberta e nenhum evento chega.\n\n**Presença.** Assinar `private-user.{user_id}` marca esse usuário como **online** no painel (a equipe recebe `user-status-changed`); ao deixar o canal, ele volta a **offline** depois de cerca de 60 segundos. Integrações servidor a servidor que precisam desse canal devem usar um usuário dedicado, para não aparecer como um atendente disponível.\n\n### Canais\n\n| Canal | Quem pode assinar | Eventos |\n|---|---|---|\n| `private-chat.{chat_id}` | Qualquer usuário do tenant dono da conversa | `message-received`, `message-status-received`, `action-received`, `message-delete` |\n| `private-chats.{tenant_id}` | Qualquer usuário do tenant | `chats-received`, `chats-actions-received`, `remove-chat` — todas as conversas do tenant |\n| `private-chats.{user_id}` | Qualquer usuário do mesmo tenant | Os mesmos eventos, só das conversas atribuídas a esse usuário |\n| `private-tenant.{tenant_id}` | Qualquer usuário do tenant | `chat-counters-sync`, `user-status-changed`, `whatsapp-cloud-connected`, `whatsapp-baileys-connected` |\n| `private-user.{user_id}` | Somente o próprio usuário | `reminder-due`, `session.revoke` |\n| `app-channel.{identifier}.{external_id}` | Público — quem souber o nome | `app-channel.message` |\n| `website-channel.{identifier}.{external_id}` | Público — quem souber o nome | `website-channel.message`, `website-channel.chat-closed` |\n\nO painel da Pipeelo usa esses mesmos canais e pode receber neles eventos de uso interno que não estão nesta documentação. Ignore qualquer evento que você não reconheça.\n\n### Convenções dos payloads\n\n- **Chaves opcionais são omitidas**, não enviadas como `null`. Trate \"ausente\" e `null` da mesma forma.\n- **Enums**: `from` é `USER` (atendente ou IA) ou `CUSTOMER` (cliente); `resource_type` é `MESSAGE`, `EVENT` ou `ACTION`; o `type` da mensagem vem em minúsculas (`text`, `image`…); o `type` da ação vem em maiúsculas (`CHAT_CLOSED`…); o `status` do usuário vem em minúsculas (`active`, `offline`…).\n- **Datas** são ISO 8601, em dois formatos conforme o campo: `created_at` de mensagens vem com fuso (`2026-08-24T12:34:56-03:00`); `startedAt` e `due_date` vêm em UTC com microssegundos (`2026-08-24T15:34:56.000000Z`). Use um parser de ISO 8601 e não dependa do formato exato.\n- **Mídia** em `message-received`: o campo com o nome do tipo (`image`, `video`, `audio`, `voice`, `document`, `sticker`) traz o caminho do arquivo no armazenamento. Baixe com `GET /download/{path}` (autenticado). Nos canais públicos a mídia vem como `media_url`, um link temporário válido por 1 hora.\n- **Ids** são uuids em string.\n\n### Eventos da conversa — `private-chat.{chat_id}`\n\nCanal de uma conversa aberta na tela. Assine ao abrir a conversa e cancele ao sair.\n\n#### `message-received`\n\nUma mensagem entrou na conversa — do cliente, de um atendente, da IA ou de uma automação (templates, campanhas). Chega em todos os canais de atendimento.\n\n| Campo | Tipo | Descrição |\n|---|---|---|\n| `id` | string | Id da mensagem. |\n| `type` | string | `text`, `image`, `video`, `audio`, `voice`, `document`, `sticker`, `location`, `contacts`, `interactive`, `template`, `reaction`, `button`, `order_details`, `system`, `function`, `error`, `unknown`, `unsupported` ou `user_changed_number`. |\n| `from` | string | `CUSTOMER` (cliente) ou `USER` (atendente ou IA). |\n| `user` | objeto | `{\"name\": \"...\"}` — só quando `from` é `USER`. |\n| `created_at` | string | Data e hora da mensagem. |\n| `payload_id` | string | Id da mensagem no canal de origem (ex.: `wamid.…` no WhatsApp). Ausente em conversas do WhatsApp conectado por QR Code. |\n| `reply_to_id` | string | Id da mensagem respondida, quando é uma resposta. |\n| `resource_type` | string | Sempre `MESSAGE`. |\n| `hash_uuid` | string | Eco do `hash_uuid` enviado no `POST` da mensagem. Serve para reconhecer o próprio envio e trocar a mensagem otimista pela definitiva. |\n\nCampos adicionais conforme o `type`:\n\n| Tipo | Campos |\n|---|---|\n| `text` | `text`; `selected_value` (opção escolhida pelo cliente em resposta a uma mensagem interativa) |\n| `image`, `video`, `document`, `sticker` | Campo com o nome do tipo (caminho do arquivo); `text` (legenda); `filename`; `mime_type` |\n| `audio`, `voice` | Campo com o nome do tipo (caminho do arquivo); `transcribed_text`; `filename`; `mime_type` |\n| `template` | `template` (`header`, `body`, `footer`); `buttons` (lista) |\n| `contacts` | `contacts` (lista de contatos) ou `contact_name` e `contact_phone` |\n| `location` | `latitude`, `longitude` |\n| `reaction` | `emoji` |\n| `button` | `text` |\n| `order_details` | `text`, `product_name`, `code`, `value` |\n| `interactive` | `text`; `items` (lista de `{\"title\", \"value\", \"description\"}`); `selected_value` |\n| demais | Só os campos base |\n\n```json\n{\n    \"id\": \"9d3e6b0e-0c2a-4c1e-9f9a-1f2d3c4b5a6e\",\n    \"type\": \"text\",\n    \"from\": \"CUSTOMER\",\n    \"text\": \"Olá, quero saber sobre o meu pedido\",\n    \"payload_id\": \"wamid.HBgLNTU0Nzk5OTk5OTk5FQIAEhggQUJD\",\n    \"created_at\": \"2026-08-24T12:34:56-03:00\",\n    \"resource_type\": \"MESSAGE\"\n}\n```\n\n```json\n{\n    \"id\": \"2b7c1f7a-6d1e-4f7b-8d2a-5c6e7f8a9b0c\",\n    \"type\": \"image\",\n    \"from\": \"USER\",\n    \"user\": { \"name\": \"Maria\" },\n    \"image\": \"tenant/9a1b/chats/2b7c/foto_A1B2C3D4.jpg\",\n    \"text\": \"Segue o comprovante\",\n    \"filename\": \"foto.jpg\",\n    \"mime_type\": \"image/jpeg\",\n    \"created_at\": \"2026-08-24T12:35:10-03:00\",\n    \"resource_type\": \"MESSAGE\",\n    \"hash_uuid\": \"c0ffee00-1111-4222-8333-444455556666\"\n}\n```\n\n#### `message-status-received`\n\nO canal de origem informou o status de entrega de uma mensagem enviada pela sua operação.\n\n| Campo | Tipo | Descrição |\n|---|---|---|\n| `message_id` | string | Id da mensagem (o mesmo `id` de `message-received`). |\n| `status` | string | `sent`, `delivered`, `read`, `failed`, `deleted` ou `warning`. |\n| `resource_type` | string | Sempre `EVENT`. |\n\nQuais status cada canal reporta: WhatsApp Official e WhatsApp Cloud — `sent`, `delivered`, `read`, `failed`; Facebook Messenger — `delivered`, `read`; Instagram — `read`.\n\n```json\n{\n    \"message_id\": \"2b7c1f7a-6d1e-4f7b-8d2a-5c6e7f8a9b0c\",\n    \"status\": \"read\",\n    \"resource_type\": \"EVENT\"\n}\n```\n\n#### `action-received`\n\nUma ação foi registrada na conversa: início, encerramento, transferência, anotação interna, arquivamento. É o mesmo item que aparece na linha do tempo da conversa em `GET /chats/{chatId}`.\n\n| Campo | Tipo | Descrição |\n|---|---|---|\n| `id` | string | Id da ação. |\n| `type` | string | `CHAT_STARTED`, `WA_SESSION_STARTED`, `CHAT_CLOSED`, `SENT_TO_CATEGORY_QUEUE`, `SENT_TO_USER_INBOX`, `NOTE`, `CHAT_ARCHIVED` ou `CHAT_UNARCHIVED`. |\n| `description` | string | Texto pronto para exibição, no idioma da conta. |\n| `params` | objeto \\| null | Detalhes da ação: `name` (destino da transferência), `note` (texto da anotação), `by` (quem executou). Só as chaves que se aplicam. |\n| `resource_type` | string | Sempre `ACTION`. |\n\n```json\n{\n    \"id\": \"5f0e9d8c-7b6a-4f5e-9d3c-2b1a0f9e8d7c\",\n    \"type\": \"SENT_TO_USER_INBOX\",\n    \"description\": \"Chat transferido para João Silva por Maria\",\n    \"params\": { \"name\": \"João Silva\", \"by\": \"Maria\" },\n    \"resource_type\": \"ACTION\"\n}\n```\n\n#### `message-delete`\n\nUma mensagem foi apagada pelo atendente (disponível no WhatsApp conectado por QR Code). Remova-a da tela.\n\n| Campo | Tipo | Descrição |\n|---|---|---|\n| `message_id` | string | Id da mensagem apagada. |\n\n```json\n{ \"message_id\": \"2b7c1f7a-6d1e-4f7b-8d2a-5c6e7f8a9b0c\" }\n```\n\n### Eventos da lista de conversas — `private-chats.{tenant_id}` e `private-chats.{user_id}`\n\nMantêm a lista de conversas atualizada sem polling. O canal do tenant recebe todas as conversas; o canal do usuário recebe só as atribuídas a ele — por isso um evento de conversa com dono é publicado nos dois.\n\n#### `chats-received`\n\nA conversa entrou ou mudou na lista: mensagem nova (de qualquer um dos lados), transferência, distribuição automática, criação. Não é emitido para conversas já encerradas. Use o `id` para inserir ou atualizar a linha e reordene pela última mensagem.\n\n| Campo | Tipo | Descrição |\n|---|---|---|\n| `id` | string | Id da conversa. |\n| `user_id` | string \\| null | Atendente responsável; `null` quando está na fila ou com a IA sem dono. |\n| `message_channel` | string | `WHATSAPP_OFFICIAL`, `WHATSAPP_CLOUD`, `WHATSAPP_BAILEYS`, `FACEBOOK_MESSENGER`, `INSTAGRAM`, `TELEGRAM`, `APP`, `WEBSITE`, `SIMULATION`, `IMPORTED` ou `IMPORTED_HISTORY`. |\n| `sub_channel` | objeto \\| null | Conta do canal de origem: `id`, `name` e, quando existe, `phone`; os demais campos variam por canal. `null` no WhatsApp Cloud e no Instagram. |\n| `customer` | objeto | `id`, `name`, `phone`, `wa_profile_picture` (url ou `null`). |\n| `last_message` | objeto \\| null | `id`, `type`, `from`, `text` (quando houver) e `created_at` da última mensagem. |\n| `startedAt` | string | Início da conversa. |\n| `category_id` | string \\| null | Categoria (fila) atual. |\n| `is_new_transfer` | boolean | `true` enquanto a conversa transferida ainda não recebeu resposta do novo atendente. |\n| `reason_chat` | lista \\| null | Motivos identificados pela IA para a conversa, como lista de textos. |\n| `is_archived` | boolean | Conversa arquivada. |\n\n```json\n{\n    \"id\": \"7a6b5c4d-3e2f-4a1b-9c8d-7e6f5a4b3c2d\",\n    \"user_id\": \"1f2e3d4c-5b6a-4798-8a9b-0c1d2e3f4a5b\",\n    \"message_channel\": \"WHATSAPP_OFFICIAL\",\n    \"sub_channel\": { \"id\": \"c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f\", \"name\": \"Comercial\", \"phone\": \"5511999999999\" },\n    \"customer\": {\n        \"id\": \"8b7a6c5d-4e3f-4a2b-9c1d-0e9f8a7b6c5d\",\n        \"name\": \"Ana Souza\",\n        \"phone\": \"5511988887777\",\n        \"wa_profile_picture\": null\n    },\n    \"last_message\": {\n        \"id\": \"9d3e6b0e-0c2a-4c1e-9f9a-1f2d3c4b5a6e\",\n        \"type\": \"text\",\n        \"from\": \"CUSTOMER\",\n        \"text\": \"Olá, quero saber sobre o meu pedido\",\n        \"created_at\": \"2026-08-24T12:34:56-03:00\"\n    },\n    \"startedAt\": \"2026-08-24T15:30:00.000000Z\",\n    \"category_id\": \"d4c3b2a1-f0e9-4d8c-7b6a-5f4e3d2c1b0a\",\n    \"is_new_transfer\": false,\n    \"reason_chat\": [\"Dúvida sobre pedido\"],\n    \"is_archived\": false\n}\n```\n\n#### `chats-actions-received`\n\nUma ação mudou o estado de uma conversa da lista. Decida o que fazer com a linha pelo `type`: `CHAT_CLOSED` sai da lista de abertas; `SENT_TO_CATEGORY_QUEUE` volta para a fila (perde o dono); `SENT_TO_USER_INBOX` ganhou um atendente; `CHAT_ARCHIVED` e `CHAT_UNARCHIVED` trocam de lista. Os demais tipos são informativos.\n\n| Campo | Tipo | Descrição |\n|---|---|---|\n| `chat_id` | string | Id da conversa. |\n| `type` | string | Os mesmos valores de `type` em `action-received`. |\n\n```json\n{ \"chat_id\": \"7a6b5c4d-3e2f-4a1b-9c8d-7e6f5a4b3c2d\", \"type\": \"CHAT_CLOSED\" }\n```\n\n#### `remove-chat`\n\nA conversa deve sair da lista de quem está ouvindo: foi encerrada, transferida para outro atendente ou devolvida à IA.\n\n| Campo | Tipo | Descrição |\n|---|---|---|\n| `chat_id` | string | Id da conversa. |\n\n```json\n{ \"chat_id\": \"7a6b5c4d-3e2f-4a1b-9c8d-7e6f5a4b3c2d\" }\n```\n\n### Eventos do tenant — `private-tenant.{tenant_id}`\n\nUm canal por conta, para tudo que interessa à equipe inteira.\n\n#### `chat-counters-sync`\n\nOs contadores de conversas (abertas, na fila, por atendente) mudaram. O evento não traz números: recarregue `GET /chats/amount` e `GET /chats/counters/{user_id?}`, com um pequeno debounce — em picos ele chega várias vezes por segundo.\n\n```json\n{}\n```\n\n#### `user-status-changed`\n\nUm usuário da equipe mudou de status — manualmente ou por presença (conectou ou desconectou do WebSocket).\n\n| Campo | Tipo | Descrição |\n|---|---|---|\n| `user_id` | string | Id do usuário. |\n| `status` | string | `active`, `active_all`, `paused`, `deactivated`, `on_vacation` ou `offline`. |\n| `at` | string | Momento da mudança. Eventos podem chegar fora de ordem: aplique só se `at` for mais recente que o último conhecido. |\n\n```json\n{\n    \"user_id\": \"1f2e3d4c-5b6a-4798-8a9b-0c1d2e3f4a5b\",\n    \"status\": \"offline\",\n    \"at\": \"2026-08-24T12:40:00-03:00\"\n}\n```\n\n#### `whatsapp-cloud-connected`\n\nUm número terminou o cadastro no WhatsApp Cloud (o registro na Meta é assíncrono e pode levar alguns minutos depois do `POST /whatsapp-cloud`).\n\n| Campo | Tipo | Descrição |\n|---|---|---|\n| `value` | objeto | O canal: `id`, `tenant_id`, `name`, `phone`, `waba_id`, `phone_number_id`, `category_id`, `assistant_id`, `is_default`, `status` (`active`, `pending` ou `action_required`). |\n| `message` | string | Texto pronto para exibição. |\n\n```json\n{\n    \"value\": {\n        \"id\": \"c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f\",\n        \"tenant_id\": \"a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d\",\n        \"name\": \"Suporte\",\n        \"phone\": \"5511999999999\",\n        \"waba_id\": \"102030405060708\",\n        \"phone_number_id\": \"111222333444555\",\n        \"is_default\": true,\n        \"status\": \"active\"\n    },\n    \"message\": \"Número conectado com sucesso ao WhatsApp Cloud.\"\n}\n```\n\n#### `whatsapp-baileys-connected`\n\nUma conexão de WhatsApp por QR Code mudou de estado.\n\n| Campo | Tipo | Descrição |\n|---|---|---|\n| `value` | objeto | A conexão: `id`, `phone`, `status` (`active` — QR Code lido e número conectado; `conflict` — o número já está conectado em outra instância; `inactive` — desconectado) e `instance_key`. |\n| `message` | string | Texto pronto para exibição, de acordo com o `status`. |\n\n```json\n{\n    \"value\": {\n        \"id\": \"e5f6a7b8-c9d0-4e1f-8a2b-3c4d5e6f7a8b\",\n        \"instance_key\": \"pipeelo-a1b2c3\",\n        \"phone\": \"5511999999999\",\n        \"status\": \"active\"\n    },\n    \"message\": \"A instância do WhatsApp no número 5511999999999 foi conectada com sucesso.\"\n}\n```\n\n### Eventos do usuário — `private-user.{user_id}`\n\nCanal pessoal de quem está autenticado. Lembre-se do efeito de presença descrito em \"Autenticação de canais privados\".\n\n#### `reminder-due`\n\nUm lembrete do usuário venceu.\n\n| Campo | Tipo | Descrição |\n|---|---|---|\n| `id` | string | Id do lembrete. |\n| `name` | string | Título. |\n| `description` | string \\| null | Descrição. |\n| `due_date` | string | Vencimento. |\n| `customer_id` | string \\| null | Cliente vinculado. |\n\n```json\n{\n    \"id\": \"f1e2d3c4-b5a6-4978-8a9b-0c1d2e3f4a5b\",\n    \"name\": \"Retornar ligação\",\n    \"description\": \"Cliente pediu retorno sobre a proposta\",\n    \"due_date\": \"2026-08-24T18:00:00.000000Z\",\n    \"customer_id\": \"8b7a6c5d-4e3f-4a2b-9c1d-0e9f8a7b6c5d\"\n}\n```\n\n#### `session.revoke`\n\nA sessão deste token foi encerrada porque o usuário entrou em outro dispositivo ou navegador, ou porque o cadastro dele foi alterado. Desconecte o socket e leve o usuário ao login.\n\n| Campo | Tipo | Descrição |\n|---|---|---|\n| `user_id` | string | Id do usuário. |\n| `message` | string | Texto pronto para exibição. |\n\n```json\n{\n    \"user_id\": \"1f2e3d4c-5b6a-4798-8a9b-0c1d2e3f4a5b\",\n    \"message\": \"Essa sessão foi finalizada, pois, foi iniciado em outro dispositivo ou browser.\"\n}\n```\n\nO painel da Pipeelo também usa este canal para o chat interno da equipe (`internal-chat-message-notification`) — ignore esse evento.\n\n### Canais públicos — in-app e site\n\nCanais sem autenticação, para o app do seu cliente e para o widget do seu site. A proteção é o nome do canal: o `external_id` deve ser opaco (um uuid), nunca um dado que se possa adivinhar. O guia passo a passo está em \"Canal In-App\".\n\n#### `app-channel.message` e `website-channel.message`\n\nUma mensagem entrou na conversa do usuário do app (`app-channel.{identifier}.{external_id}`) ou do visitante do site (`website-channel.{identifier}.{external_id}`). O socket entrega os dois lados, inclusive o eco das mensagens enviadas pelo próprio app — deduplique pelo `message_id`, que também é devolvido no envio. O formato é o mesmo dos itens do histórico e do webhook do canal.\n\n| Campo | Tipo | Descrição |\n|---|---|---|\n| `message_id` | string | Id da mensagem. |\n| `chat_id` | string | Atendimento ao qual a mensagem pertence. |\n| `external_id` | string | Id do usuário no seu sistema. |\n| `type` | string | `text`, `image`, `audio`, `video`, `document` ou `interactive`. |\n| `text` | string \\| null | Texto da mensagem. |\n| `items` | lista \\| null | Opções de uma mensagem interativa: `{\"title\", \"value\", \"description\"}`. |\n| `selected_value` | string \\| null | Opção escolhida, quando a mensagem responde a uma interativa. |\n| `media_url` | string \\| null | Link temporário do arquivo, válido por 1 hora — se expirar, recarregue o histórico. |\n| `from` | string | `customer` (usuário do app ou visitante) ou `company` (IA ou atendente). |\n| `created_at` | string | Data e hora da mensagem. |\n\n```json\n{\n    \"message_id\": \"9d3e6b0e-0c2a-4c1e-9f9a-1f2d3c4b5a6e\",\n    \"chat_id\": \"7a6b5c4d-3e2f-4a1b-9c8d-7e6f5a4b3c2d\",\n    \"external_id\": \"b7e2a9c4-51d3-4f8e-9a6b-2c0d1e3f4a5b\",\n    \"type\": \"text\",\n    \"text\": \"Olá! Como posso ajudar?\",\n    \"items\": null,\n    \"selected_value\": null,\n    \"media_url\": null,\n    \"from\": \"company\",\n    \"created_at\": \"2026-08-24T12:34:56-03:00\"\n}\n```\n\n#### `website-channel.chat-closed`\n\nO atendimento do visitante foi encerrado — por um atendente, pela IA, por automação ou por inatividade. A partir daí ele vira histórico: a próxima mensagem abre um atendimento novo. É uma otimização de tempo real, não uma garantia: nem todo encerramento automático emite o evento. O estado oficial é `GET /website-channel/conversations/{identifier}`.\n\n| Campo | Tipo | Descrição |\n|---|---|---|\n| `chat_id` | string | Atendimento encerrado. |\n| `ended_at` | string \\| null | Momento do encerramento. |\n\n```json\n{ \"chat_id\": \"7a6b5c4d-3e2f-4a1b-9c8d-7e6f5a4b3c2d\", \"ended_at\": \"2026-08-24T13:00:00-03:00\" }\n```\n\n### Garantias e reconciliação\n\nO WebSocket é **melhor esforço**: os eventos são publicados no momento em que acontecem, sem fila, sem retentativa e sem reenvio para quem estava desconectado. A ordem entre canais diferentes não é garantida. A fonte de verdade é sempre a API REST — use o socket para reagir rápido, e a API para se certificar.\n\n**Ao abrir uma conversa.** Assine `private-chat.{chat_id}`, carregue `GET /chats/{chatId}` e, quando o cliente Pusher emitir `pusher:subscription_succeeded`, busque `GET /chats/messages/delta/{chatId}?since=...&since_id=...` com a última mensagem carregada — isso cobre a janela entre a leitura e a ativação do canal.\n\n**Ao reconectar.** Quando `state_change` voltar a `connected` depois de uma queda, recarregue a lista (`GET /chats`) e a conversa aberta; nos canais públicos, recarregue o histórico. Os eventos perdidos durante a queda não voltam.\n\n**Deduplicação.** Use o `id` (`message_id` nos canais públicos) como chave: o mesmo evento pode chegar mais de uma vez quando você assina o canal do tenant e o do usuário. Se você envia mensagens com `hash_uuid`, use-o para casar o `message-received` com a mensagem otimista já desenhada.\n\n**Contadores.** `chat-counters-sync` só avisa que algo mudou; refaça a consulta com debounce em vez de tentar manter os números por conta própria.\n\n**Eventos desconhecidos.** Novos eventos e novos campos podem aparecer a qualquer momento nos mesmos canais; ignore o que não reconhecer. Campos e eventos documentados não são removidos sem aviso.\n\n### Referência rápida\n\n| Evento | Canal | Quando dispara |\n|---|---|---|\n| `message-received` | `private-chat.{chat_id}` | Mensagem entrou na conversa (qualquer lado) |\n| `message-status-received` | `private-chat.{chat_id}` | Canal reportou entrega, leitura ou falha |\n| `action-received` | `private-chat.{chat_id}` | Ação registrada na conversa |\n| `message-delete` | `private-chat.{chat_id}` | Mensagem apagada pelo atendente |\n| `chats-received` | `private-chats.{tenant_id}`, `private-chats.{user_id}` | Conversa entrou ou mudou na lista |\n| `chats-actions-received` | `private-chats.{tenant_id}`, `private-chats.{user_id}` | Ação mudou o estado de uma conversa da lista |\n| `remove-chat` | `private-chats.{tenant_id}`, `private-chats.{user_id}` | Conversa saiu da lista |\n| `chat-counters-sync` | `private-tenant.{tenant_id}` | Contadores mudaram |\n| `user-status-changed` | `private-tenant.{tenant_id}` | Usuário mudou de status |\n| `whatsapp-cloud-connected` | `private-tenant.{tenant_id}` | Número ativado no WhatsApp Cloud |\n| `whatsapp-baileys-connected` | `private-tenant.{tenant_id}` | Conexão por QR Code mudou de estado |\n| `reminder-due` | `private-user.{user_id}` | Lembrete venceu |\n| `session.revoke` | `private-user.{user_id}` | Sessão encerrada por login em outro dispositivo |\n| `app-channel.message` | `app-channel.{identifier}.{external_id}` | Mensagem na conversa do usuário do app |\n| `website-channel.message` | `website-channel.{identifier}.{external_id}` | Mensagem na conversa do visitante |\n| `website-channel.chat-closed` | `website-channel.{identifier}.{external_id}` | Atendimento do visitante encerrado |\n"
     },
     "servers": [
         {
@@ -418,7 +418,7 @@
         "/chats/close/multiple": {
             "post": {
                 "operationId": "chats.finish-multiple-chats",
-                "description": "Encerra em massa as conversas informadas ou as que atendem aos filtros.",
+                "description": "Encerra em massa as conversas informadas ou as que atendem aos filtros. Com `is_all_chats=true`, o filtro `opened` é obrigatório — ações em massa só atingem conversas abertas.",
                 "summary": "Encerrar várias conversas",
                 "tags": [
                     "Ações de conversa"
@@ -510,7 +510,7 @@
         "/chats/send-multiple-to-user": {
             "post": {
                 "operationId": "chats.send-multiple-chats-to-user",
-                "description": "Transfere em massa conversas para um atendente.",
+                "description": "Transfere em massa conversas para um atendente. Com `is_all_chats=true`, o filtro `opened` é obrigatório — ações em massa só atingem conversas abertas.",
                 "summary": "Transferir várias para usuário",
                 "tags": [
                     "Ações de conversa"
@@ -541,7 +541,7 @@
         "/chats/send-multiple-category-queue": {
             "post": {
                 "operationId": "chats.send-multiple-chats-to-category-queue",
-                "description": "Envia em massa conversas para a fila de uma categoria.",
+                "description": "Envia em massa conversas para a fila de uma categoria. Com `is_all_chats=true`, o filtro `opened` é obrigatório — ações em massa só atingem conversas abertas.",
                 "summary": "Transferir várias para categoria",
                 "tags": [
                     "Ações de conversa"
@@ -634,7 +634,7 @@
         "/chats/send-multiple-to-ai": {
             "post": {
                 "operationId": "chats.send-multiple-chats-to-ai",
-                "description": "Transfere em massa conversas para atendimento pelo assistente de IA.",
+                "description": "Transfere em massa conversas para atendimento pelo assistente de IA. Com `is_all_chats=true`, o filtro `opened` é obrigatório — ações em massa só atingem conversas abertas.",
                 "summary": "Enviar várias para IA",
                 "tags": [
                     "Ações de conversa"
@@ -3175,7 +3175,7 @@
         "/chats": {
             "get": {
                 "operationId": "chat.index",
-                "description": "Retorna a lista paginada de conversas do tenant, da mais recente para a mais antiga. Combine os filtros de estado, canal, atendente e período conforme necessário — com `search`, os demais filtros são ignorados.",
+                "description": "Retorna a lista paginada de conversas do tenant, da mais recente para a mais antiga. A resposta não traz `total`/`last_page` — use `next_page_url` para saber se há próxima página. Combine os filtros de estado, canal, atendente e período conforme necessário — com `search`, os demais filtros são ignorados. Com `orderby` de mensagem (`newest-message`/`oldest-message`), o filtro `opened` é obrigatório.",
                 "summary": "Listar conversas",
                 "tags": [
                     "Conversas"
@@ -3401,7 +3401,7 @@
                     {
                         "name": "per_page",
                         "in": "query",
-                        "description": "Itens por página (padrão 12).",
+                        "description": "Itens por página (padrão 12, máximo 100).",
                         "schema": {
                             "type": "integer"
                         }
@@ -3822,24 +3822,24 @@
         "/chats/amount": {
             "get": {
                 "operationId": "chats.amount",
-                "description": "Retorna o total de conversas que atendem aos filtros informados — os mesmos de `GET /chats`.",
-                "summary": "Contar conversas",
+                "description": "Retorna o total de conversas abertas que atendem aos filtros informados — os mesmos de `GET /chats`. O parâmetro `filters` é obrigatório e deve incluir `opened`; sem ele, retorna 422.",
+                "summary": "Contar conversas abertas",
                 "tags": [
                     "Conversas"
                 ],
                 "parameters": [
                     {
-                        "name": "search",
+                        "name": "filters",
                         "in": "query",
-                        "description": "Busca por protocolo ou por nome/telefone do cliente (mínimo 5 caracteres). Quando presente, os demais filtros são ignorados.",
+                        "required": true,
                         "schema": {
                             "type": "string"
                         }
                     },
                     {
-                        "name": "filters",
+                        "name": "search",
                         "in": "query",
-                        "description": "Estados da conversa, separados por vírgula: `opened`, `closed`, `pending`, `queue`, `has_customer_message`. O `pending` só é aceito junto de `opened` (`opened,pending`); sozinho, retorna 422.",
+                        "description": "Busca por protocolo ou por nome/telefone do cliente (mínimo 5 caracteres). Quando presente, os demais filtros são ignorados.",
                         "schema": {
                             "type": "string"
                         }
@@ -4067,6 +4067,9 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -6901,7 +6904,7 @@
         "/chats/message/text/bulk": {
             "post": {
                 "operationId": "chatMessage.sendBulkTextMessage",
-                "description": "Agenda o envio da mesma mensagem de texto para várias conversas (`chats` ou `is_all_chats` + filtros). O processamento é assíncrono, em lotes com atraso escalonado.",
+                "description": "Agenda o envio da mesma mensagem de texto para várias conversas (`chats` ou `is_all_chats` + filtros; com `is_all_chats=true`, o filtro `opened` é obrigatório). O processamento é assíncrono, em lotes com atraso escalonado.",
                 "summary": "Enviar texto em massa",
                 "tags": [
                     "Mensagens"
@@ -16000,6 +16003,9 @@
                             "null"
                         ]
                     },
+                    "filters": {
+                        "type": "string"
+                    },
                     "reason_chat_slug": {
                         "type": [
                             "string",
@@ -16371,12 +16377,6 @@
                     "template_parameter_header": {
                         "type": [
                             "string",
-                            "null"
-                        ]
-                    },
-                    "template_is_broadcast": {
-                        "type": [
-                            "boolean",
                             "null"
                         ]
                     },
@@ -18505,6 +18505,78 @@
                 },
                 "title": "OfficialWhatsappSessionData"
             },
+            "Paginator": {
+                "type": "object",
+                "properties": {
+                    "current_page": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "first_page_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "from": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 1
+                    },
+                    "next_page_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "path": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Base path for paginator generated URLs."
+                    },
+                    "per_page": {
+                        "type": "integer",
+                        "description": "Number of items shown per page.",
+                        "minimum": 0
+                    },
+                    "prev_page_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "to": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "description": "Number of the last item in the slice.",
+                        "minimum": 1
+                    }
+                },
+                "required": [
+                    "current_page",
+                    "data",
+                    "first_page_url",
+                    "from",
+                    "next_page_url",
+                    "path",
+                    "per_page",
+                    "prev_page_url",
+                    "to"
+                ],
+                "title": "Paginator"
+            },
             "PromptData": {
                 "type": "object",
                 "properties": {
@@ -19187,7 +19259,7 @@
                         "contentMediaType": "application/octet-stream",
                         "maxLength": 30000
                     },
-                    "is_broadcast": {
+                    "hash_uuid": {
                         "type": [
                             "string",
                             "null"
@@ -19218,11 +19290,8 @@
                             "null"
                         ]
                     },
-                    "is_broadcast": {
-                        "type": [
-                            "boolean",
-                            "null"
-                        ]
+                    "filters": {
+                        "type": "string"
                     },
                     "is_add_user_name": {
                         "type": "boolean"
@@ -19295,12 +19364,6 @@
                             "null"
                         ]
                     },
-                    "is_broadcast": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
-                    },
                     "is_add_user_name": {
                         "type": [
                             "string",
@@ -19345,7 +19408,7 @@
                             "null"
                         ]
                     },
-                    "is_broadcast": {
+                    "hash_uuid": {
                         "type": [
                             "string",
                             "null"
@@ -19387,12 +19450,6 @@
                             "null"
                         ],
                         "maxLength": 20
-                    },
-                    "is_broadcast": {
-                        "type": [
-                            "boolean",
-                            "null"
-                        ]
                     },
                     "items": {
                         "type": "array",
@@ -19440,6 +19497,9 @@
                             "null"
                         ]
                     },
+                    "filters": {
+                        "type": "string"
+                    },
                     "chats": {
                         "type": "array",
                         "items": {
@@ -19461,6 +19521,9 @@
                             "boolean",
                             "null"
                         ]
+                    },
+                    "filters": {
+                        "type": "string"
                     },
                     "category_id": {
                         "type": "string",
@@ -19523,9 +19586,6 @@
                     "product_name": {
                         "type": "string"
                     },
-                    "is_broadcast": {
-                        "type": "boolean"
-                    },
                     "is_background": {
                         "type": "boolean"
                     }
@@ -19558,9 +19618,9 @@
                             "null"
                         ]
                     },
-                    "is_broadcast": {
+                    "hash_uuid": {
                         "type": [
-                            "boolean",
+                            "string",
                             "null"
                         ]
                     },
@@ -19606,9 +19666,9 @@
                         "type": "string",
                         "format": "uuid"
                     },
-                    "is_broadcast": {
+                    "hash_uuid": {
                         "type": [
-                            "boolean",
+                            "string",
                             "null"
                         ]
                     },
@@ -19659,7 +19719,7 @@
                         "contentMediaType": "application/octet-stream",
                         "maxLength": 100000
                     },
-                    "is_broadcast": {
+                    "hash_uuid": {
                         "type": [
                             "string",
                             "null"
@@ -19812,6 +19872,9 @@
                             "boolean",
                             "null"
                         ]
+                    },
+                    "filters": {
+                        "type": "string"
                     },
                     "note": {
                         "type": "string"
