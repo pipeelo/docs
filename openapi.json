@@ -14381,7 +14381,7 @@
                                         "cpf_cnpj_tipo": "cpf",
                                         "cep": "87010-***"
                                     },
-                                    "meta": []
+                                    "meta": {}
                                 }
                             }
                         }
@@ -14561,7 +14561,7 @@
                         "crmApiKey": []
                     }
                 ],
-                "description": "Retorna um catálogo da empresa. As etapas são as customizadas do tenant — as etapas fixas do funil (LEAD, MQL, SQL, SAL, FECHADO…) são constantes de protocolo, não vêm aqui.\n\nEscopo `catalog:read`.",
+                "description": "Retorna um catálogo da empresa. As etapas são as customizadas do tenant — as etapas fixas do funil (LEAD, MQL, SQL, SAL, FECHADO…) são constantes de protocolo, não vêm aqui.\n\n`plano-categorias` e `plano-tecnologias` são as opções do formulário de plano, cada item com `value` e `label`. Use-as para montar os campos antes de chamar `POST /plans`. A categoria é validada: valor fora da lista dá 400. A tecnologia é texto livre — a lista é sugestão, não regra.\n\nEscopo `catalog:read`.",
                 "parameters": [
                     {
                         "name": "resource",
@@ -14573,7 +14573,9 @@
                             "enum": [
                                 "planos",
                                 "vendedores",
-                                "estagios"
+                                "estagios",
+                                "plano-categorias",
+                                "plano-tecnologias"
                             ]
                         }
                     }
@@ -14617,10 +14619,10 @@
                                         {
                                             "id": "p1a2b3c4-d5e6-7a8b-9c0d-1e2f3a4b5c6d",
                                             "nome": "Fibra 300",
-                                            "velocidade_download": 300,
-                                            "velocidade_upload": 150,
-                                            "valor_mensal": 99.9,
-                                            "tecnologia": "fibra",
+                                            "velocidade_download": "300",
+                                            "velocidade_upload": "150",
+                                            "valor_mensal": "99.90",
+                                            "tecnologia": "Fibra",
                                             "descricao": "Plano residencial",
                                             "ativo": true,
                                             "categoria": "internet",
@@ -14643,6 +14645,345 @@
                     },
                     "404": {
                         "$ref": "#/components/responses/CrmNotFound"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/CrmRateLimited"
+                    }
+                }
+            },
+            "servers": [
+                {
+                    "url": "https://crm.pipeelo.com/api/v1",
+                    "description": "Produção (CRM)"
+                }
+            ]
+        },
+        "/plans": {
+            "get": {
+                "operationId": "crmListPlans",
+                "tags": [
+                    "Planos"
+                ],
+                "summary": "Lista os planos",
+                "security": [
+                    {
+                        "crmApiKey": []
+                    }
+                ],
+                "description": "Todos os planos da empresa, inclusive os inativos — filtre por `ativo=true` para so os que estao a venda. Ordenado por categoria, velocidade e nome.\n\nSem paginacao: `meta.has_more` avisa se o teto de 500 foi atingido.\n\nEscopo `catalog:read`.",
+                "parameters": [
+                    {
+                        "name": "categoria",
+                        "in": "query",
+                        "description": "Filtra por categoria.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "internet",
+                                "movel",
+                                "fixa",
+                                "tv",
+                                "combo",
+                                "outro"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "ativo",
+                        "in": "query",
+                        "description": "true = so os que estao a venda.",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "Busca por parte do nome (ignora maiusculas).",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/CrmPlano"
+                                            }
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "has_more": {
+                                                    "type": "boolean"
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "example": {
+                                    "data": [
+                                        {
+                                            "id": "p1a2b3c4-d5e6-7a8b-9c0d-1e2f3a4b5c6d",
+                                            "nome": "Fibra 300",
+                                            "velocidade_download": "300",
+                                            "velocidade_upload": "150",
+                                            "valor_mensal": "99.90",
+                                            "tecnologia": "Fibra",
+                                            "descricao": "Plano residencial",
+                                            "ativo": true,
+                                            "categoria": "internet",
+                                            "criado_em": "2026-01-01T00:00:00.000Z",
+                                            "atualizado_em": "2026-09-10T12:00:00.000Z"
+                                        }
+                                    ],
+                                    "meta": {
+                                        "has_more": false
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/CrmValidationError"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/CrmUnauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/CrmForbidden"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/CrmRateLimited"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "crmCreatePlan",
+                "tags": [
+                    "Planos"
+                ],
+                "summary": "Cadastra um plano",
+                "security": [
+                    {
+                        "crmApiKey": []
+                    }
+                ],
+                "description": "Cria um plano na empresa da chave.\n\n`nome`, `velocidade_download` e `valor_mensal` sao obrigatorios; o resto tem padrao. Campo que nao esta na lista da 400 — nada e ignorado em silencio.\n\nNome repetido (ignorando maiusculas) da **409**, com o id do plano existente em `details[0].existing_plan_id`. Trate o 409 como sucesso de sincronizacao: o plano ja esta la.\n\nEscopo `plans:write`.",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CrmPlanoCreate"
+                            },
+                            "example": {
+                                "nome": "Fibra 700",
+                                "velocidade_download": 700,
+                                "velocidade_upload": 350,
+                                "valor_mensal": 149.9,
+                                "tecnologia": "Fibra",
+                                "descricao": "Plano familia",
+                                "categoria": "internet"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Plano criado.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CrmPlano"
+                                },
+                                "example": {
+                                    "id": "p1a2b3c4-d5e6-7a8b-9c0d-1e2f3a4b5c6d",
+                                    "nome": "Fibra 300",
+                                    "velocidade_download": "300",
+                                    "velocidade_upload": "150",
+                                    "valor_mensal": "99.90",
+                                    "tecnologia": "Fibra",
+                                    "descricao": "Plano residencial",
+                                    "ativo": true,
+                                    "categoria": "internet",
+                                    "criado_em": "2026-01-01T00:00:00.000Z",
+                                    "atualizado_em": "2026-09-10T12:00:00.000Z"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/CrmValidationError"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/CrmUnauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/CrmForbidden"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/CrmConflict"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/CrmRateLimited"
+                    }
+                }
+            },
+            "servers": [
+                {
+                    "url": "https://crm.pipeelo.com/api/v1",
+                    "description": "Produção (CRM)"
+                }
+            ]
+        },
+        "/plans/{id}": {
+            "get": {
+                "operationId": "crmGetPlan",
+                "tags": [
+                    "Planos"
+                ],
+                "summary": "Detalha um plano",
+                "security": [
+                    {
+                        "crmApiKey": []
+                    }
+                ],
+                "description": "Escopo `catalog:read`.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Id do plano.",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CrmPlano"
+                                },
+                                "example": {
+                                    "id": "p1a2b3c4-d5e6-7a8b-9c0d-1e2f3a4b5c6d",
+                                    "nome": "Fibra 300",
+                                    "velocidade_download": "300",
+                                    "velocidade_upload": "150",
+                                    "valor_mensal": "99.90",
+                                    "tecnologia": "Fibra",
+                                    "descricao": "Plano residencial",
+                                    "ativo": true,
+                                    "categoria": "internet",
+                                    "criado_em": "2026-01-01T00:00:00.000Z",
+                                    "atualizado_em": "2026-09-10T12:00:00.000Z"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/CrmUnauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/CrmForbidden"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/CrmNotFound"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/CrmRateLimited"
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "crmUpdatePlan",
+                "tags": [
+                    "Planos"
+                ],
+                "summary": "Edita um plano",
+                "security": [
+                    {
+                        "crmApiKey": []
+                    }
+                ],
+                "description": "Alteracao parcial: so os campos enviados mudam, o resto fica como esta. Corpo vazio da 400 — um PATCH que nao faz nada esconderia de voce que o campo veio com o nome errado.\n\n**Para tirar um plano de circulacao, envie `{\"ativo\": false}`.** Nao existe DELETE: plano apagado quebraria o historico dos leads que apontam para ele.\n\nPara limpar um campo opcional, mande `null` (ex.: `{\"descricao\": null}`).\n\nEscopo `plans:write`.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Id do plano.",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CrmPlanoUpdate"
+                            },
+                            "example": {
+                                "valor_mensal": 179.9,
+                                "ativo": false
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Plano atualizado.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CrmPlano"
+                                },
+                                "example": {
+                                    "id": "p1a2b3c4-d5e6-7a8b-9c0d-1e2f3a4b5c6d",
+                                    "nome": "Fibra 300",
+                                    "velocidade_download": "300",
+                                    "velocidade_upload": "150",
+                                    "valor_mensal": "99.90",
+                                    "tecnologia": "Fibra",
+                                    "descricao": "Plano residencial",
+                                    "ativo": true,
+                                    "categoria": "internet",
+                                    "criado_em": "2026-01-01T00:00:00.000Z",
+                                    "atualizado_em": "2026-09-10T12:00:00.000Z"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/CrmValidationError"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/CrmUnauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/CrmForbidden"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/CrmNotFound"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/CrmConflict"
                     },
                     "429": {
                         "$ref": "#/components/responses/CrmRateLimited"
@@ -22145,32 +22486,6 @@
                     "cep": "87010-***"
                 }
             },
-            "CrmError": {
-                "type": "object",
-                "properties": {
-                    "error": {
-                        "type": "object",
-                        "properties": {
-                            "code": {
-                                "type": "string"
-                            },
-                            "message": {
-                                "type": "string"
-                            },
-                            "request_id": {
-                                "type": "string",
-                                "format": "uuid"
-                            },
-                            "details": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    }
-                }
-            },
             "CrmActivity": {
                 "type": "object",
                 "properties": {
@@ -22231,21 +22546,24 @@
                     },
                     "velocidade_download": {
                         "type": [
-                            "integer",
+                            "string",
                             "null"
-                        ]
+                        ],
+                        "description": "Mbps. Numero em texto, ex.: \"300\"."
                     },
                     "velocidade_upload": {
                         "type": [
-                            "integer",
+                            "string",
                             "null"
-                        ]
+                        ],
+                        "description": "Mbps. Numero em texto."
                     },
                     "valor_mensal": {
                         "type": [
-                            "number",
+                            "string",
                             "null"
-                        ]
+                        ],
+                        "description": "Reais com 2 casas, em texto, ex.: \"99.90\"."
                     },
                     "tecnologia": {
                         "type": [
@@ -22269,6 +22587,15 @@
                         "type": [
                             "string",
                             "null"
+                        ],
+                        "enum": [
+                            "internet",
+                            "movel",
+                            "fixa",
+                            "tv",
+                            "combo",
+                            "outro",
+                            null
                         ]
                     },
                     "criado_em": {
@@ -22284,6 +22611,135 @@
                             "null"
                         ],
                         "format": "date-time"
+                    }
+                }
+            },
+            "CrmPlanoCreate": {
+                "type": "object",
+                "required": [
+                    "nome",
+                    "velocidade_download",
+                    "valor_mensal"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                    "nome": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "velocidade_download": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Mbps."
+                    },
+                    "velocidade_upload": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "description": "Mbps. Opcional."
+                    },
+                    "valor_mensal": {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "description": "Mensalidade em reais."
+                    },
+                    "tecnologia": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 50,
+                        "default": "Fibra",
+                        "description": "Texto livre. Sugestoes em /catalog/plano-tecnologias."
+                    },
+                    "descricao": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 2000
+                    },
+                    "categoria": {
+                        "type": "string",
+                        "enum": [
+                            "internet",
+                            "movel",
+                            "fixa",
+                            "tv",
+                            "combo",
+                            "outro"
+                        ],
+                        "default": "internet",
+                        "description": "Ver /catalog/plano-categorias."
+                    },
+                    "ativo": {
+                        "type": "boolean",
+                        "default": true
+                    }
+                }
+            },
+            "CrmPlanoUpdate": {
+                "type": "object",
+                "minProperties": 1,
+                "additionalProperties": false,
+                "description": "So os campos enviados sao alterados. Ao menos um e obrigatorio.",
+                "properties": {
+                    "nome": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "velocidade_download": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Mbps."
+                    },
+                    "velocidade_upload": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "description": "Mbps. Opcional."
+                    },
+                    "valor_mensal": {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "description": "Mensalidade em reais."
+                    },
+                    "tecnologia": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 50,
+                        "default": "Fibra",
+                        "description": "Texto livre. Sugestoes em /catalog/plano-tecnologias."
+                    },
+                    "descricao": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 2000
+                    },
+                    "categoria": {
+                        "type": "string",
+                        "enum": [
+                            "internet",
+                            "movel",
+                            "fixa",
+                            "tv",
+                            "combo",
+                            "outro"
+                        ],
+                        "default": "internet",
+                        "description": "Ver /catalog/plano-categorias."
+                    },
+                    "ativo": {
+                        "type": "boolean",
+                        "default": true
                     }
                 }
             },
@@ -22457,6 +22913,32 @@
                         "description": "Soma do valor estimado dos leads do estágio (0 quando não há)."
                     }
                 }
+            },
+            "CrmError": {
+                "type": "object",
+                "properties": {
+                    "error": {
+                        "type": "object",
+                        "properties": {
+                            "code": {
+                                "type": "string"
+                            },
+                            "message": {
+                                "type": "string"
+                            },
+                            "request_id": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "details": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         "responses": {
@@ -22505,6 +22987,144 @@
                             "required": [
                                 "message"
                             ]
+                        }
+                    }
+                }
+            },
+            "CrmUnauthorized": {
+                "description": "Chave ausente, inválida, expirada ou revogada.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/CrmError"
+                        },
+                        "example": {
+                            "error": {
+                                "code": "MISSING_API_KEY",
+                                "message": "Header Authorization: Bearer <chave> ausente.",
+                                "request_id": "d08eeec9-4111-49e0-98f5-2bb68c2a87fd"
+                            }
+                        }
+                    }
+                }
+            },
+            "CrmForbidden": {
+                "description": "A chave não tem o escopo exigido pelo endpoint.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/CrmError"
+                        },
+                        "example": {
+                            "error": {
+                                "code": "INSUFFICIENT_SCOPE",
+                                "message": "A chave não tem o escopo necessário: leads:read.",
+                                "request_id": "d08eeec9-4111-49e0-98f5-2bb68c2a87fd"
+                            }
+                        }
+                    }
+                }
+            },
+            "CrmNotFound": {
+                "description": "Recurso inexistente ou de outra empresa (indistinguíveis de propósito).",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/CrmError"
+                        },
+                        "example": {
+                            "error": {
+                                "code": "NOT_FOUND",
+                                "message": "Lead não encontrado.",
+                                "request_id": "d08eeec9-4111-49e0-98f5-2bb68c2a87fd"
+                            }
+                        }
+                    }
+                }
+            },
+            "CrmValidationError": {
+                "description": "Parâmetro, corpo ou cursor inválido.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/CrmError"
+                        },
+                        "example": {
+                            "error": {
+                                "code": "VALIDATION_ERROR",
+                                "message": "contato_whatsapp é obrigatório e deve ter de 10 a 13 dígitos.",
+                                "request_id": "d08eeec9-4111-49e0-98f5-2bb68c2a87fd",
+                                "details": [
+                                    {
+                                        "field": "contato_whatsapp",
+                                        "code": "invalid"
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            },
+            "CrmConflict": {
+                "description": "Ja existe um plano com esse nome nesta empresa.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/CrmError"
+                        },
+                        "example": {
+                            "error": {
+                                "code": "PLAN_ALREADY_EXISTS",
+                                "message": "Ja existe um plano com este nome.",
+                                "request_id": "d08eeec9-4111-49e0-98f5-2bb68c2a87fd",
+                                "details": [
+                                    {
+                                        "field": "nome",
+                                        "code": "duplicate",
+                                        "existing_plan_id": "p1a2b3c4-d5e6-7a8b-9c0d-1e2f3a4b5c6d"
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            },
+            "CrmRateLimited": {
+                "description": "Limite de requisições excedido. Respeite o Retry-After.",
+                "headers": {
+                    "Retry-After": {
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Segundos até poder tentar de novo."
+                    },
+                    "X-RateLimit-Limit": {
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    "X-RateLimit-Remaining": {
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    "X-RateLimit-Reset": {
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/CrmError"
+                        },
+                        "example": {
+                            "error": {
+                                "code": "RATE_LIMITED",
+                                "message": "Limite de requisições excedido.",
+                                "request_id": "d08eeec9-4111-49e0-98f5-2bb68c2a87fd"
+                            }
                         }
                     }
                 }
@@ -22666,7 +23286,7 @@
         },
         {
             "name": "Começando",
-            "description": "## API do CRM\n\nA **API Pública do Pipeelo CRM** dá ao seu sistema acesso programático aos dados do seu CRM de vendas: liste leads e o histórico de cada um, consulte catálogos (planos, vendedores, etapas) e métricas, e **crie leads** vindos do seu site ou formulário. Cada empresa usa a própria chave e enxerga **somente os próprios dados**.\n\n> Esta API é separada da API da plataforma de atendimento. Ela vive em outro domínio e usa chaves próprias.\n\n### Base URL\n\n| Ambiente | URL |\n|---|---|\n| Produção | `https://crm.pipeelo.com/api/v1` |\n\n### Autenticação\n\nChaves Bearer no formato `pi_live_…`. Para criar uma:\n\n1. No painel do CRM, entre em **Configurações → Chaves de API** (administradores).\n2. **Nova chave** → nome → marque só as permissões necessárias → expiração.\n3. **Copie na hora** — a chave aparece uma única vez e não pode ser recuperada. Guarde como senha.\n\n```\nAuthorization: Bearer pi_live_a1b2c3d4e5f6_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n```\n\nSó `GET /health` é público.\n\n### Permissões (escopos)\n\n| Escopo | Permite |\n|---|---|\n| `leads:read` | Listar leads e ver o detalhe de cada um |\n| `leads:ingest` | Criar leads (não permite ler nem editar) |\n| `activities:read` | Ver o histórico de atividades de um lead |\n| `catalog:read` | Ver planos, vendedores e etapas |\n| `metrics:read` | Ver métricas (inclui custo por lead, gasto com anúncios e ROAS) |\n\nEndpoint sem o escopo exigido → `403 INSUFFICIENT_SCOPE`.\n\n### Isolamento por empresa\n\nA chave está amarrada a uma empresa e **toda** resposta é filtrada por ela no banco. Não há parâmetro de tenant, e uma chave não alcança dados de outra empresa: um recurso de outra empresa responde `404`, indistinguível de inexistente.\n\n### Privacidade\n\nA leitura de leads **sempre mascara dados pessoais** — telefone, e-mail, CPF/CNPJ e CEP vêm parcialmente ocultos (ex.: `(44) ****-7766`, `f***@gmail.com`, `***.***.***-01`). Notas internas (`tipo: nota`) vêm com `descricao: null`.\n\n### Envelope e paginação\n\nSucesso segue `{ \"data\": …, \"meta\": … }`. Listas são paginadas por **cursor**: repita a chamada enviando `next_cursor` (de `meta.pagination`) no parâmetro `cursor`; acabou quando `has_more` for `false`. O cursor é opaco.\n\n### Erros\n\nCódigos HTTP + corpo `{ \"error\": { \"code\", \"message\", \"request_id\" } }`. O `code` é contrato estável.\n\n| Status | `code` | Quando |\n|---|---|---|\n| `400` | `VALIDATION_ERROR`, `INVALID_JSON`, `INVALID_CURSOR` | Parâmetro, corpo ou cursor inválido |\n| `401` | `MISSING_API_KEY`, `INVALID_API_KEY`, `EXPIRED_API_KEY`, `REVOKED_API_KEY` | Chave ausente / inválida / expirada / revogada |\n| `403` | `INSUFFICIENT_SCOPE` | Chave sem o escopo do endpoint |\n| `404` | `NOT_FOUND` | Recurso inexistente ou de outra empresa |\n| `409` | `LEAD_ALREADY_EXISTS` | Já existe lead ativo com o mesmo telefone |\n| `429` | `RATE_LIMITED` | Limite de requisições excedido |\n\n**Retry:** `4xx` nunca re-tentar; `429` só após o `Retry-After`; `5xx` com backoff exponencial e teto.\n\n### Limites\n\n60 requisições/min por chave e 300/min por empresa. Toda resposta traz `X-RateLimit-Limit/Remaining/Reset`; ao estourar, `429` com `Retry-After`.\n"
+            "description": "## API do CRM\n\nA **API Pública do Pipeelo CRM** dá ao seu sistema acesso programático aos dados do seu CRM de vendas: liste leads e o histórico de cada um, consulte catálogos (planos, vendedores, etapas) e métricas, **crie leads** vindos do seu site ou formulário e **cadastre e edite os planos** que a sua equipe vende. Cada empresa usa a própria chave e enxerga **somente os próprios dados**.\n\n> Esta API é separada da API da plataforma de atendimento. Ela vive em outro domínio e usa chaves próprias.\n\n### Base URL\n\n| Ambiente | URL |\n|---|---|\n| Produção | `https://crm.pipeelo.com/api/v1` |\n\n### Autenticação\n\nChaves Bearer no formato `pi_live_…`. Para criar uma:\n\n1. No painel do CRM, entre em **Configurações → Chaves de API** (administradores).\n2. **Nova chave** → nome → marque só as permissões necessárias → expiração.\n3. **Copie na hora** — a chave aparece uma única vez e não pode ser recuperada. Guarde como senha.\n\n```\nAuthorization: Bearer pi_live_a1b2c3d4e5f6_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n```\n\nSó `GET /health` é público.\n\n### Permissões (escopos)\n\n| Escopo | Permite |\n|---|---|\n| `leads:read` | Listar leads e ver o detalhe de cada um |\n| `leads:ingest` | Criar leads (não permite ler nem editar) |\n| `activities:read` | Ver o histórico de atividades de um lead |\n| `catalog:read` | Ver planos, vendedores e etapas |\n| `metrics:read` | Ver métricas (inclui custo por lead, gasto com anúncios e ROAS) |\n| `plans:write` | Cadastrar e editar planos (não apaga plano) |\n\nEndpoint sem o escopo exigido → `403 INSUFFICIENT_SCOPE`.\n\nMarque só o que o seu sistema precisa. Em particular, `plans:write` mexe em **preço**: uma chave que só lê catálogo não deve recebê-lo.\n\n### Isolamento por empresa\n\nA chave está amarrada a uma empresa e **toda** resposta é filtrada por ela no banco. Não há parâmetro de tenant, e uma chave não alcança dados de outra empresa: um recurso de outra empresa responde `404`, indistinguível de inexistente.\n\n### Privacidade\n\nA leitura de leads **sempre mascara dados pessoais** — telefone, e-mail, CPF/CNPJ e CEP vêm parcialmente ocultos (ex.: `(44) ****-7766`, `f***@gmail.com`, `***.***.***-01`). Notas internas (`tipo: nota`) vêm com `descricao: null`.\n\n### Envelope e paginação\n\nSucesso segue `{ \"data\": …, \"meta\": … }`. Listas são paginadas por **cursor**: repita a chamada enviando `next_cursor` (de `meta.pagination`) no parâmetro `cursor`; acabou quando `has_more` for `false`. O cursor é opaco.\n\n### Erros\n\nCódigos HTTP + corpo `{ \"error\": { \"code\", \"message\", \"request_id\" } }`. O `code` é contrato estável.\n\n| Status | `code` | Quando |\n|---|---|---|\n| `400` | `VALIDATION_ERROR`, `INVALID_JSON`, `INVALID_CURSOR` | Parâmetro, corpo ou cursor inválido |\n| `401` | `MISSING_API_KEY`, `INVALID_API_KEY`, `EXPIRED_API_KEY`, `REVOKED_API_KEY` | Chave ausente / inválida / expirada / revogada |\n| `403` | `INSUFFICIENT_SCOPE` | Chave sem o escopo do endpoint |\n| `404` | `NOT_FOUND` | Recurso inexistente ou de outra empresa |\n| `409` | `LEAD_ALREADY_EXISTS` | Já existe lead ativo com o mesmo telefone |\n| `429` | `RATE_LIMITED` | Limite de requisições excedido |\n\n**Retry:** `4xx` nunca re-tentar; `429` só após o `Retry-After`; `5xx` com backoff exponencial e teto.\n\n### Limites\n\n60 requisições/min por chave e 300/min por empresa. Toda resposta traz `X-RateLimit-Limit/Remaining/Reset`; ao estourar, `429` com `Retry-After`.\n"
         },
         {
             "name": "Leads",
@@ -22675,6 +23295,10 @@
         {
             "name": "Histórico do lead",
             "description": "Atividades de um lead."
+        },
+        {
+            "name": "Planos",
+            "description": "Cadastrar, editar e listar os planos que a sua equipe vende."
         },
         {
             "name": "Catálogos",
@@ -22780,6 +23404,7 @@
                 "Começando",
                 "Leads",
                 "Histórico do lead",
+                "Planos",
                 "Catálogos",
                 "Métricas de vendas"
             ]
