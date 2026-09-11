@@ -32,9 +32,17 @@ Isso exporta o spec via Scramble, aplica o pós-processamento (grupos da sidebar
 
 ## Deploy
 
-### Vercel (conectada ao GitHub)
+### Easypanel (produção, desde 10/09/2026)
 
-O site é 100% estático — sem build. Projeto conectado ao repositório `pipeelo/docs`: **todo push na `main` publica automaticamente**.
+`docs.pipeelo.com` roda no **Easypanel**, no mesmo VPS do resto da plataforma — serviço
+`docs` do projeto `pipeelo`. Constrói o `Dockerfile` (nginx:alpine servindo os estáticos
+na porta 8080); não há etapa de build de JS.
+
+**Todo push na `main` publica.** Quem dispara é um webhook `push` do próprio repositório
+apontando para a URL de deploy do serviço, e NÃO a integração GitHub↔Easypanel: o
+`autoDeploy` do painel não fixa neste repo, porque o app do GitHub do Easypanel não tem
+acesso a ele. O webhook é o caminho que funciona — não o troque por `autoDeploy` sem
+conferir que fixou.
 
 ```bash
 # na api, após mudar endpoints:
@@ -44,17 +52,24 @@ make docs-sync
 git add openapi.json && git commit -m "Atualiza documentação" && git push
 ```
 
-Configuração na Vercel (feita uma vez): Add New Project → Import `pipeelo/docs` → Framework **Other**, sem build command, output na raiz. Os headers de cache estão em `vercel.json` (spec sempre revalidado; bundle do Scalar imutável). Para domínio próprio (ex.: `docs.pipeelo.com`), adicione o domínio no painel e aponte o CNAME.
+Deploy manual, se precisar: botão **Deploy** no painel do serviço, ou um `POST` na URL de
+deploy (a mesma do webhook, visível em Easypanel → projeto `pipeelo` → `docs`).
 
-Deploy manual sem git, se precisar: `npx vercel --prod`.
+Os headers de cache moram no `nginx.conf` — spec sempre revalidado, bundle do Scalar
+imutável por um ano, assets por um dia.
 
-### Docker (alternativa self-host)
+> **Migramos da Vercel em 10/09/2026.** O motivo foi concreto: um push na `main` parou de
+> publicar e o site ficou servindo a versão antiga sem nenhum erro visível. O `vercel.json`
+> continua no repo só como referência dos headers; a Vercel não é mais a origem de
+> `docs.pipeelo.com`.
+
+### Docker (rodar em qualquer lugar)
 
 ```bash
 docker compose up -d   # nginx servindo em http://localhost:8021
 ```
 
-O `Dockerfile` (nginx:alpine + estáticos com gzip e cache) serve para subir no ECS/qualquer host Docker, no mesmo fluxo ECR da API.
+É o mesmo `Dockerfile` que o Easypanel constrói, então o que roda local é o que vai pro ar.
 
 ## Atualizar o Scalar
 
